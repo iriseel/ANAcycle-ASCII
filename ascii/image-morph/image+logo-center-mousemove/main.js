@@ -56,40 +56,50 @@ const CHARACTER_SETS = [
   ['.', '☐', '✧', '✦', '★', '⊕'],
   ['.', '∘', '▫', '✫', '◇', '◓'],
 
-  // ['.', '▫', '◐','▪', '◆', '◼'],
-  // ['.', '·', '∘', '∙', '◓', '●'],
-  // ['.', '▴', '*', '░', '▒'],
-  // ['.', '▪', '▮', '█', '▓', '▒'],
-  // ['.', '░', '▒', '▓', '█', '▀'],
-  // ['.', '▔', '▢', '▣', '▤', '▥'],
+  
   // ['.', '○', '∴', '⁘', '∗', '◎'],
   // ['.', '·', '✦', '✧', '★', '⊕'],
   // ['.', '∘', '▫', '∙', '*', '⊕'],
   // ['.', '▪', '▮', '█', '▓', '▒'],
   // ['.', '░', '▒', '▓', '█', '▀'],
   // ['.', '▔', '▢', '▣', '▤', '▥'],
-  // ['.', '◦', '◉', '◈', '◆', '■'],
+  // ['.', '◇', '◈', '◉', '●', '⬤'],
   // ['.', '▪', '◼', '◽', '◾', '◿'],
   // ['.', '▭', '▬', '▮', '▯', '▰'],
   // ['.', '☐', '☑', '☒', '☓', '☔'],
-  // ['.', '◇', '◈', '◉', '●', '⬤'],
   // ['.', '⬚', '⬛', '⬜', '⬝', '⬞'],
-  // ['.', '◗', '◖', '◕', '◔', '◓'],
-  // ['.', '▘', '▙', '▚', '▛', '▜'],
   // ['.', '▝', '▞', '▟', '▲', '▼'],
   // ['.', '◀', '▶', '◢', '◣', '◤'],
   // ['.', '◥', '★', '✦', '✧', '✨'],
   // ['.', '✪', '✫', '✬', '✭', '✮'],
   // ['.', '⚫', '⚬', '⚪', '⚭', '⚮'],
+  // ['.', '░', '▒', '▓', '█', '▀'],
+  // ['.', '▘', '▙', '▚', '▛', '▜'],
+  // ['.', '▪', '▮', '░', '▒', '▓'],
+  // ['.', '◗', '◖', '◕', '◔', '◓'],
+  // ['.', '▔', '▢', '▣', '▤', '▥'],
+  // ['.', '▴', '*', '░', '▒'],
   // ['.', '●', '◯', '◬', '◭', '◮'],
+];
+
+const TITLE_CHARACTER_SETS = [
+  ['◐','▪', '◉'],
+  ['◉', '◆', '■'],
+  ['◓','◉', '●']
 ];
 
 
 // Current character set (defaults to first set)
 const CHARACTER_SET = CHARACTER_SETS[0];
 
+// Title character set (defaults to first set of TITLE_CHARACTER_SETS)
+const TITLE_CHARACTER_SET = TITLE_CHARACTER_SETS[0];
+
 // Text overlay configuration
 const TEXT_OVERLAY = 'ANACYCLE';
+
+// Title font family (used for text overlay rendering)
+const TITLE_FONT_FAMILY = 'Modern Gothic Mono';
 
 // Toggle state for minimal mode
 let isMinimalMode = false;
@@ -181,8 +191,10 @@ class AsciiTextOverlay {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     // Set canvas size based on text
-    const fontSize = 90;
-    ctx.font = `${fontSize}px 'Druk Wide', sans-serif`;
+    // Calculate font size as 15vmin (15% of the smaller viewport dimension)
+    const vmin = Math.min(window.innerWidth, window.innerHeight);
+    const fontSize = vmin * 0.15;
+    ctx.font = `${fontSize}px '${TITLE_FONT_FAMILY}', sans-serif`;
 
     // custom letter spacing (pixels)
       const LETTER_SPACING = 10;
@@ -211,9 +223,10 @@ class AsciiTextOverlay {
       };
       const metrics = ctx.measureText(this.text);
 
-    // Add padding to ensure no clipping
-    const width = Math.ceil(metrics.width) + 30;
-    const height = Math.ceil(fontSize * 1.2);
+    // Add padding to ensure no clipping (proportional to font size)
+    const padding = Math.ceil(fontSize * 0.5);
+    const width = Math.ceil(metrics.width) + padding;
+    const height = Math.ceil(fontSize * 1.2) + padding;
 
     canvas.width = width;
     canvas.height = height;
@@ -222,7 +235,7 @@ class AsciiTextOverlay {
     ctx.clearRect(0, 0, width, height);
 
     // Set font before defining fillText override
-    ctx.font = `${fontSize}px 'Druk Wide', sans-serif`;
+    ctx.font = `${fontSize}px '${TITLE_FONT_FAMILY}', sans-serif`;
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -238,8 +251,10 @@ class AsciiTextOverlay {
       }
     };
 
-    // Draw text
-    ctx.fillText(this.text, 0, 0);
+    // Draw text with padding offset to prevent clipping
+    const leftPadding = Math.ceil(padding / 2);
+    const topPadding = Math.ceil(padding / 2);
+    ctx.fillText(this.text, leftPadding, topPadding);
 
     // Get image data
     const imageData = ctx.getImageData(0, 0, width, height);
@@ -533,6 +548,10 @@ class MorphingAscii {
     this.transitionDuration = TRANSITION_DURATION;
     this.transitionStartTime = 0;
 
+    // Initial load animation state
+    this.isInitialLoad = true;
+    this.initialLoadOpacity = 0;
+
     // Extract image names from src attributes
     this.imageNames = this.images.map(img => {
       const src = img.getAttribute('src');
@@ -593,6 +612,10 @@ class MorphingAscii {
     const gridWidth = Math.ceil(this.viewportWidth / this.charWidth);
     const gridHeight = Math.ceil(this.viewportHeight / this.charHeight);
 
+    // Store grid dimensions for text masking
+    this.gridWidth = gridWidth;
+    this.gridHeight = gridHeight;
+
     // Calculate resulting pixel dimensions
     const pixelWidth = gridWidth * this.charWidth;
     const pixelHeight = gridHeight * this.charHeight;
@@ -624,10 +647,6 @@ class MorphingAscii {
 
     this.isInitialized = true;
 
-    // Initial render - show first image
-    this.updateImageName(0);
-    this.render();
-
     // Start click listener
     document.addEventListener('click', this.handleClick);
     window.addEventListener('resize', () => this.handleResize());
@@ -636,6 +655,9 @@ class MorphingAscii {
     this.setupMousemove();
 
     console.log('Morphing ASCII initialized successfully!');
+
+    // Start initial load animation sequence
+    this.startInitialLoadSequence();
   }
 
   setupMousemove() {
@@ -644,8 +666,8 @@ class MorphingAscii {
     let totalDistance = 0;
 
     document.addEventListener('mousemove', (e) => {
-      // Only allow character swapping when NOT transitioning
-      if (this.isTransitioning) {
+      // Only allow character swapping when NOT transitioning and NOT during initial load
+      if (this.isTransitioning || this.isInitialLoad) {
         return;
       }
 
@@ -673,7 +695,10 @@ class MorphingAscii {
           this.asciiDataCache[this.currentImageIndex] = newFromData;
         }
 
-        // Re-render with updated character sets
+        // Also update title text characters on mousemove
+        cycleTextCharacters();
+
+        // Re-render with updated character sets (unified grid)
         this.render(0);
       }
     });
@@ -709,9 +734,8 @@ class MorphingAscii {
     // Prepare text overlay transition with new random character positions (stays black and white)
     prepareTextTransition();
 
-    // Immediately render with new colors at the start of transition
+    // Immediately render with new colors at the start of transition (unified grid)
     this.render(0);
-    morphTextOverlay(0);
 
     console.log(`Starting transition: ${this.currentImageIndex} → ${this.targetImageIndex}`);
 
@@ -729,11 +753,8 @@ class MorphingAscii {
     // Ease-in-out function for smooth transition
     const eased = this.easeInOutCubic(this.transitionProgress);
 
-    // Render morphed state (images)
+    // Render morphed state (unified grid with text)
     this.render(eased);
-
-    // Morph text overlay
-    morphTextOverlay(eased);
 
     // Update image name during transition
     if (this.transitionProgress >= 0.5) {
@@ -751,49 +772,208 @@ class MorphingAscii {
     }
   }
 
+  // Initial load animation sequence
+  startInitialLoadSequence() {
+    console.log('Starting initial load sequence...');
+
+    // Phase 1: Show text only for 1 second
+    this.updateImageName(0);
+    this.renderWithRevealMask(new Set()); // Render with no image characters visible (text only)
+
+    // Phase 2: After 1 second, reveal image characters randomly over 1 second
+    setTimeout(() => {
+      console.log('Revealing image characters randomly...');
+
+      const fromData = this.asciiDataCache[this.currentImageIndex];
+      const totalCharacters = fromData.width * fromData.height;
+
+      // Create array of all character positions (excluding text positions)
+      const morphedText = morphTextData(1);
+      const textMask = morphedText
+        ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
+        : new Map();
+
+      const availablePositions = [];
+      for (let i = 0; i < totalCharacters; i++) {
+        const x = i % fromData.width;
+        const y = Math.floor(i / fromData.width);
+        const key = `${x},${y}`;
+
+        // Only include positions that don't have text
+        if (!textMask.has(key)) {
+          availablePositions.push(i);
+        }
+      }
+
+      // Shuffle positions for random reveal
+      const shuffledPositions = this.shuffleArray([...availablePositions]);
+
+      const revealStartTime = performance.now();
+      const revealDuration = 1000; // 1 second
+      const revealedSet = new Set();
+
+      const revealAnimation = () => {
+        const elapsed = performance.now() - revealStartTime;
+        const progress = Math.min(elapsed / revealDuration, 1);
+
+        // Calculate how many characters should be revealed at this point
+        const targetCount = Math.floor(progress * shuffledPositions.length);
+
+        // Add newly revealed positions
+        for (let i = revealedSet.size; i < targetCount; i++) {
+          revealedSet.add(shuffledPositions[i]);
+        }
+
+        // Render with current reveal mask
+        this.renderWithRevealMask(revealedSet);
+
+        if (progress < 1) {
+          requestAnimationFrame(revealAnimation);
+        } else {
+          console.log('Initial load complete');
+          this.isInitialLoad = false;
+          // Final render without mask (normal rendering)
+          this.render(0);
+        }
+      };
+
+      revealAnimation();
+    }, 1000); // 1 second pause
+  }
+
+  // Helper function to shuffle array
+  shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
   easeInOutCubic(t) {
     return t < 0.5
       ? 4 * t * t * t
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  render(progress = 0) {
+  render(progress = 0, imageOpacity = 1) {
     const fromIndex = this.currentImageIndex;
     const toIndex = this.targetImageIndex;
 
     const fromData = this.asciiDataCache[fromIndex];
     const toData = this.asciiDataCache[toIndex];
 
-    // Morph between the two images
-    const morphedHTML = this.morphCharacters(fromData, toData, progress);
+    // Get morphed text data for masking
+    // When not transitioning, use currentTextData directly to show mousemove animations
+    const morphedText = this.isTransitioning
+      ? morphTextData(progress)
+      : currentTextData;
+
+    // Calculate text mask positions
+    const textMask = morphedText
+      ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
+      : new Map();
+
+    // Morph between the two images with text masking
+    const morphedHTML = this.morphCharactersUnified(fromData, toData, progress, textMask, imageOpacity);
+
+    // Update DOM (unified grid - single element)
+    this.asciiArt.innerHTML = morphedHTML;
+  }
+
+  // Render with reveal mask for initial load animation
+  renderWithRevealMask(revealedPositions) {
+    const fromIndex = this.currentImageIndex;
+    const fromData = this.asciiDataCache[fromIndex];
+
+    // Get text data for masking
+    const morphedText = morphTextData(1);
+
+    // Calculate text mask positions
+    const textMask = morphedText
+      ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
+      : new Map();
+
+    // Render with reveal mask
+    const morphedHTML = this.morphCharactersWithReveal(fromData, textMask, revealedPositions);
 
     // Update DOM
     this.asciiArt.innerHTML = morphedHTML;
   }
 
-  morphCharacters(fromData, toData, progress) {
+  // Morph characters with reveal mask (for initial load)
+  morphCharactersWithReveal(fromData, textMask, revealedPositions) {
     let result = '';
     const width = fromData.width;
+    const height = fromData.height;
 
-    for (let i = 0; i < fromData.data.length; i++) {
-      // Add newline at end of each row
-      if (i > 0 && i % width === 0) {
-        result += '\n';
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * width + x;
+        const key = `${x},${y}`;
+
+        // Check if this position has text
+        const textCell = textMask.get(key);
+
+        if (textCell) {
+          // Render text character (always visible, always black for lighten blend mode)
+          result += `<span style="color:rgb(0,0,0)">${textCell.char}</span>`;
+        } else if (revealedPositions.has(i)) {
+          // Render revealed image character
+          const char = fromData.data[i];
+          result += `<span style="color:rgb(${char.r},${char.g},${char.b})">${char.char}</span>`;
+        } else {
+          // Not yet revealed - render as space
+          result += ' ';
+        }
       }
 
-      const fromChar = fromData.data[i];
-      const toChar = toData.data[i];
+      // Add newline at end of each row
+      result += '\n';
+    }
 
-      // Interpolate between characters and colors
-      const morphed = this.interpolateCharacter(
-        fromChar,
-        toChar,
-        progress,
-        i
-      );
+    return result;
+  }
 
-      // Generate colored span for each character (black for lighten blend mode)
-      result += `<span style="color:rgb(${morphed.r},${morphed.g},${morphed.b})">${morphed.char}</span>`;
+  morphCharactersUnified(fromData, toData, progress, textMask, imageOpacity = 1) {
+    let result = '';
+    const width = fromData.width;
+    const height = fromData.height;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * width + x;
+        const key = `${x},${y}`;
+
+        // Check if this position has text
+        const textCell = textMask.get(key);
+
+        if (textCell) {
+          // Render text character (always black for lighten blend mode)
+          result += `<span style="color:rgb(0,0,0)">${textCell.char}</span>`;
+        } else {
+          // Render image character with opacity control
+          const fromChar = fromData.data[i];
+          const toChar = toData.data[i];
+
+          // Interpolate between characters and colors
+          const morphed = this.interpolateCharacter(
+            fromChar,
+            toChar,
+            progress,
+            i
+          );
+
+          // Apply opacity to image characters during initial load
+          const opacity = imageOpacity < 1 ? `;opacity:${imageOpacity}` : '';
+
+          // Generate colored span for each character (black for lighten blend mode)
+          result += `<span style="color:rgb(${morphed.r},${morphed.g},${morphed.b})${opacity}">${morphed.char}</span>`;
+        }
+      }
+
+      // Add newline at end of each row
+      result += '\n';
     }
 
     return result;
@@ -809,11 +989,14 @@ class MorphingAscii {
     const setIndex = (currentAscii && currentAscii.positionSets[positionIndex]) || 0;
     const steps = CHARACTER_SETS[setIndex];
 
+    // Map brightness to character - INVERTED so bright pixels get light chars
+    // This matches the logic in buildAsciiData() at line 458-465
     let char;
-    if (interpolatedBrightness >= 1) {
+    const invertedBrightness = 1 - interpolatedBrightness;
+    if (invertedBrightness >= 1) {
       char = steps[steps.length - 1];
     } else {
-      char = steps[Math.floor(interpolatedBrightness * steps.length)];
+      char = steps[Math.floor(invertedBrightness * steps.length)];
     }
 
     // Apply duotone color mapping to interpolated brightness
@@ -850,75 +1033,177 @@ class MorphingAscii {
 }
 
 // ============================================
-// TEXT OVERLAY RENDERING
+// TEXT OVERLAY RENDERING (Unified Grid System)
 // ============================================
 
 // Store text overlay states for morphing
 let currentTextData = null;
 let targetTextData = null;
+let textMaskCache = null; // Cache text mask grid positions
 
 // Generate new text data
 function generateTextData() {
-  const asciiText = new AsciiTextOverlay(TEXT_OVERLAY, CHARACTER_SET);
+  const asciiText = new AsciiTextOverlay(TEXT_OVERLAY, TITLE_CHARACTER_SET);
   return asciiText.convert();
 }
 
+// Track the last used title character set index to avoid repeats
+let lastTitleCharSetIndex = 0;
+
 // Prepare new text transition
 function prepareTextTransition() {
-  currentTextData = targetTextData || generateTextData();
-  targetTextData = generateTextData();
-  console.log('Text transition prepared');
+  // Deep copy targetTextData to currentTextData to avoid shared references
+  if (targetTextData) {
+    currentTextData = targetTextData.map(row =>
+      row.map(cell => ({ ...cell }))
+    );
+  } else {
+    currentTextData = generateTextData();
+  }
+
+  // Randomly select a different character set from TITLE_CHARACTER_SETS
+  let newIndex;
+  if (TITLE_CHARACTER_SETS.length > 1) {
+    do {
+      newIndex = Math.floor(Math.random() * TITLE_CHARACTER_SETS.length);
+    } while (newIndex === lastTitleCharSetIndex);
+  } else {
+    newIndex = 0;
+  }
+
+  lastTitleCharSetIndex = newIndex;
+
+  // Generate new text data with the selected character set
+  const selectedCharSet = TITLE_CHARACTER_SETS[newIndex];
+  const asciiText = new AsciiTextOverlay(TEXT_OVERLAY, selectedCharSet);
+  targetTextData = asciiText.convert();
+
+  console.log(`Text transition prepared with character set ${newIndex}`);
 }
 
-// Morph text overlay based on transition progress
-function morphTextOverlay(progress) {
-  if (!currentTextData || !targetTextData) return;
+// Cycle text characters on mousemove (randomly swap some character positions)
+function cycleTextCharacters() {
+  if (!currentTextData) return;
 
-  let result = '';
+  // Randomly select a character set from TITLE_CHARACTER_SETS
+  const randomSetIndex = Math.floor(Math.random() * TITLE_CHARACTER_SETS.length);
+  const selectedCharSet = TITLE_CHARACTER_SETS[randomSetIndex];
+
+  // Recreate currentTextData with new random character assignments
+  // This simulates the character cycling effect
+  const height = currentTextData.length;
+
+  for (let y = 0; y < height; y++) {
+    const row = currentTextData[y];
+    const width = row.length;
+
+    for (let x = 0; x < width; x++) {
+      const cell = row[x];
+
+      // Only update cells that have text
+      if (cell && cell.isText) {
+        // 20% chance to swap this character (matching image character swap rate)
+        if (Math.random() < 0.2) {
+          // Pick a random character from the selected set, biased towards denser characters
+          const biasedRandom = Math.pow(Math.random(), 0.25);
+          const charIndex = Math.floor(biasedRandom * selectedCharSet.length);
+          // Ensure we don't exceed array bounds
+          const safeIndex = Math.min(charIndex, selectedCharSet.length - 1);
+          cell.char = selectedCharSet[safeIndex];
+        }
+      }
+    }
+  }
+}
+
+// Calculate text mask positions in the main grid
+// Returns a Map of grid positions (as "x,y" strings) to text data
+function calculateTextMask(textData, gridWidth, gridHeight, charWidth, charHeight) {
+  const mask = new Map();
+
+  if (!textData || textData.length === 0) return mask;
+
+  // Calculate text dimensions in characters
+  const textWidthChars = textData[0].length;
+  const textHeightChars = textData.length;
+
+  // Calculate center position in the viewport
+  const viewportCenterX = Math.floor(gridWidth / 2);
+  const viewportCenterY = Math.floor(gridHeight / 2);
+
+  // Calculate text starting position (top-left corner)
+  const textStartX = viewportCenterX - Math.floor(textWidthChars / 2);
+  const textStartY = viewportCenterY - Math.floor(textHeightChars / 2);
+
+  // Map text characters to grid positions
+  for (let y = 0; y < textHeightChars; y++) {
+    for (let x = 0; x < textWidthChars; x++) {
+      const gridX = textStartX + x;
+      const gridY = textStartY + y;
+
+      // Only include positions within grid bounds
+      if (gridX >= 0 && gridX < gridWidth && gridY >= 0 && gridY < gridHeight) {
+        const textCell = textData[y][x];
+
+        // Only mask positions that have actual text characters
+        if (textCell && textCell.isText) {
+          const key = `${gridX},${gridY}`;
+          mask.set(key, textCell);
+        }
+      }
+    }
+  }
+
+  console.log(`Text mask calculated: ${mask.size} positions occupied`);
+  return mask;
+}
+
+// Morph text overlay data based on transition progress
+// Returns morphed text data (but doesn't render - that happens in unified grid)
+function morphTextData(progress) {
+  if (!currentTextData || !targetTextData) return null;
+
   const height = Math.min(currentTextData.length, targetTextData.length);
-  const brightenPercent = 0.8;
-
-  // Use black in minimal mode, otherwise use brightened light color
-  const textColor = isMinimalMode
-    ? { r: 0, g: 0, b: 0 }
-    : brightenColor(DUOTONE.light, brightenPercent);
+  const morphedData = [];
 
   for (let y = 0; y < height; y++) {
     const fromRow = currentTextData[y];
     const toRow = targetTextData[y];
     const width = Math.min(fromRow.length, toRow.length);
+    const morphedRow = [];
 
     for (let x = 0; x < width; x++) {
       const fromCell = fromRow[x];
       const toCell = toRow[x];
 
-      let char;
-
       // If this is part of the text
       if (fromCell.isText || toCell.isText) {
-        // Use the random swap timing assigned to this character
-        const swapThreshold = fromCell.swapTiming;
+        // Use the swap timing from whichever cell has text
+        const swapTiming = fromCell.isText ? fromCell.swapTiming : toCell.swapTiming;
+        const swapThreshold = swapTiming || 0.5;
 
+        // Pick character based on swap timing
+        let char;
         if (progress < swapThreshold) {
-          // Still showing from character
-          char = fromCell.char;
+          char = fromCell.isText ? fromCell.char : ' ';
         } else {
-          // Swapped to target character
-          char = toCell.char;
+          char = toCell.isText ? toCell.char : ' ';
         }
 
-        // Use black for ANACYCLE text (lighten blend mode)
-        result += `<span style="color:rgb(0,0,0)">${char}</span>`;
+        morphedRow.push({
+          char,
+          isText: fromCell.isText || toCell.isText,
+          swapTiming
+        });
       } else {
         // Empty space
-        result += ' ';
+        morphedRow.push({ char: ' ', isText: false, swapTiming: 0 });
       }
     }
-    result += '\n';
+    morphedData.push(morphedRow);
   }
 
-  const asciiTextElement = document.getElementById('asciiText');
-  asciiTextElement.innerHTML = result;
+  return morphedData;
 }
 
 // ============================================
@@ -1025,10 +1310,9 @@ function toggleMinimalMode() {
   isMinimalMode = !isMinimalMode;
   document.body.classList.toggle('minimal-mode', isMinimalMode);
 
-  // Re-render current state with new mode
+  // Re-render current state with new mode (unified grid)
   if (window.morphingInstance) {
     window.morphingInstance.render(0);
-    morphTextOverlay(1);
   }
 
   console.log(`Minimal mode: ${isMinimalMode ? 'ON' : 'OFF'}`);
@@ -1063,12 +1347,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('load', () => {
     const morphing = new MorphingAscii();
     window.morphingInstance = morphing; // Store globally for toggle function
-    morphing.init();
 
-    // Initialize text overlay data
+    // Initialize text overlay data (needed before init for initial render)
     currentTextData = generateTextData();
-    targetTextData = currentTextData; // Start with same data
-    morphTextOverlay(1); // Render initial state
+    targetTextData = generateTextData(); // Generate separate copy to avoid shared reference
+
+    morphing.init();
   });
 
   // Add spacebar listener for screen recording

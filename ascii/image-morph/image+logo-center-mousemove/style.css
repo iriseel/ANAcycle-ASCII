@@ -1,6 +1,6 @@
 @font-face {
-    font-family: 'Druk Wide';
-    src: url('../../../_fonts/DrukWideLCG-Heavy.ttf') format('truetype');
+    font-family: 'Modern Gothic Mono';
+    src: url('../../../_fonts/ModernGothicMono-Medium-trial.otf') format('opentype');
     font-weight: normal;
     font-style: normal;
 }
@@ -16,7 +16,7 @@
 }
 
 body {
-    font-family: 'Courier New', Courier, monospace;
+    font-family: 'Modern Gothic Mono', Courier, monospace;
     background-color: #fff;
     color: #000;
     overflow: hidden;
@@ -112,16 +112,9 @@ body.minimal-mode {
     transform: translateZ(0);
 }
 
-/* Image layer - bottom layer */
-.ascii-image-layer {
+/* Unified layer - single integrated grid with image and text */
+.ascii-unified-layer {
     z-index: 10;
-}
-
-/* Text/Logo layer - top layer */
-.ascii-text-layer {
-    z-index: 20;
-    pointer-events: none; /* Allow clicks to pass through to image layer */
-    align-items: center; /* Position text at vertical center */
 }
 
 /* ASCII art display (images) */
@@ -139,24 +132,8 @@ body.minimal-mode {
     will-change: transform;
 }
 
-/* ASCII text display (logo overlay) */
-.ascii-text {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: var(--ascii-unit);
-    line-height: 1.0;
-    white-space: pre;
-    color: #000;
-    text-align: center;
-    mix-blend-mode: normal;
-    /* GPU acceleration */
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    will-change: transform;
-}
-
-/* Colored character spans for both image and text layers */
-.ascii-art span,
-.ascii-text span {
+/* Colored character spans */
+.ascii-art span {
     font-family: inherit;
     font-size: inherit;
     line-height: inherit;
