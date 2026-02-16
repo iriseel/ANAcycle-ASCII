@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morphing ASCII Images + Logo - Click</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Container (hidden for click version) -->
+    <div class="scroll-container" id="scrollContainer"></div>
+
+    <!-- Fixed ASCII display container - Image layer -->
+    <div class="ascii-container ascii-image-layer">
+        <div class="ascii-art" id="asciiArt"></div>
+    </div>
+
+    <!-- Fixed ASCII display container - Text/Logo layer (overlaid on top) -->
+    <div class="ascii-container ascii-text-layer">
+        <div class="ascii-text" id="asciiText"></div>
+    </div>
+
+    <!-- Fixed image name display -->
+    <div class="image-name-display" id="imageName"></div>
+
+    <!-- Hidden images for processing (populated via JS) -->
+    <div class="hidden-images" id="hiddenImages"></div>
+
+    <!-- Hidden measurement unit for character sizing -->
+    <span class="ascii-unit">█</span>
+
+    <script src="main.js"></script>
+</body>
+</html>
