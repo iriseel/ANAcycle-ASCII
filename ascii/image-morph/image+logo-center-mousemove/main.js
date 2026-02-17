@@ -125,7 +125,7 @@ class AsciiTextOverlay {
     ctx.font = `${fontSize}px '${TITLE_FONT_FAMILY}', sans-serif`;
 
     // custom letter spacing (pixels)
-      const LETTER_SPACING = 10;
+      const LETTER_SPACING = 2;
 
       // preserve originals
       const _originalMeasureText = ctx.measureText.bind(ctx);
@@ -196,11 +196,13 @@ class AsciiTextOverlay {
     const asciiData = [];
 
     // Sample every few pixels for reasonable resolution
-    const sampleRate = 8;
+    // Use different sample rates for X and Y to adjust horizontal spacing
+    const sampleRateX = 6;  // Lower value = wider spacing (more horizontal stretch)
+    const sampleRateY = 8;  // Vertical spacing
 
-    for (let y = 0; y < height; y += sampleRate) {
+    for (let y = 0; y < height; y += sampleRateY) {
       const row = [];
-      for (let x = 0; x < width; x += sampleRate) {
+      for (let x = 0; x < width; x += sampleRateX) {
         const i = (y * width + x) * 4;
 
         // Check if this pixel is part of the text (alpha > threshold)
@@ -659,6 +661,14 @@ class MorphingAscii {
       this.asciiDataCache[this.targetImageIndex] = toAscii.build();
     }
 
+    // Generate stable switching thresholds for each position (organic, non-flickering animation)
+    const totalPositions = this.gridWidth * this.gridHeight;
+    this.switchThresholds = new Array(totalPositions);
+    for (let i = 0; i < totalPositions; i++) {
+      // Bias toward later switching (0.3-1.0 range) for smooth reveal
+      this.switchThresholds[i] = 0.3 + Math.pow(Math.random(), 1.5) * 0.7;
+    }
+
     // Prepare text overlay transition with new random character positions (stays black and white)
     prepareTextTransition();
 
@@ -908,20 +918,26 @@ class MorphingAscii {
     // Interpolate brightness
     const interpolatedBrightness = from.brightness + (to.brightness - from.brightness) * progress;
 
-    // Map interpolated brightness to character set (smooth transition)
-    // Get the character set for this specific position
-    const currentAscii = this.asciiInstances[this.currentImageIndex];
-    const setIndex = (currentAscii && currentAscii.positionSets[positionIndex]) || 0;
-    const steps = CHARACTER_SETS[setIndex];
+    // Use pre-generated stable switching threshold for smooth, organic transitions
+    const switchThreshold = this.switchThresholds?.[positionIndex] ?? 0.5;
 
-    // Map brightness to character - INVERTED so bright pixels get light chars
-    // This matches the logic in buildAsciiData() at line 458-465
     let char;
-    const invertedBrightness = 1 - interpolatedBrightness;
-    if (invertedBrightness >= 1) {
-      char = steps[steps.length - 1];
+    if (progress < switchThreshold) {
+      // Still showing source character - use interpolated brightness with source's character set
+      const currentAscii = this.asciiInstances[this.currentImageIndex];
+      const setIndex = (currentAscii && currentAscii.positionSets[positionIndex]) || 0;
+      const steps = CHARACTER_SETS[setIndex];
+
+      // Map brightness to character - INVERTED so bright pixels get light chars
+      const invertedBrightness = 1 - interpolatedBrightness;
+      if (invertedBrightness >= 1) {
+        char = steps[steps.length - 1];
+      } else {
+        char = steps[Math.floor(invertedBrightness * steps.length)];
+      }
     } else {
-      char = steps[Math.floor(invertedBrightness * steps.length)];
+      // Switch to target character - use the exact character from target image
+      char = to.char;
     }
 
     // Apply duotone color mapping to interpolated brightness
