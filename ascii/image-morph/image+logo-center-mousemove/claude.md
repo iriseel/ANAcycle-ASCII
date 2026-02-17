@@ -168,3 +168,152 @@ image+logo-center-mousemove/
 3. **Viewport Units**: Better responsiveness than fixed pixel values
 4. **Proportional Spacing**: Padding/offsets should scale with content size
 5. **Direct Data Access**: For non-transitioning states, use current data directly rather than morphing at progress=1
+
+---
+
+## Session 2: UI Controls and Background Color Modes
+
+### Features Added
+
+#### 1. UI Visibility Toggle (Spacebar)
+- **Implementation**: `toggleUIVisibility()` function at `main.js:1290-1296`
+- **Trigger**: Spacebar keydown event (line 1335-1341)
+- **Behavior**: Toggles `.hidden` class on `.ui` element
+- **CSS**: `.ui.hidden` opacity/visibility transitions in `style.css:230-234`
+- **User Instruction**: Added `.info` div in `index.html:25-27`
+
+#### 2. Background Color Modes
+Four distinct visual modes controlled via dropdown in UI:
+
+**White Mode (Default)**:
+- White background (`#fff`)
+- Black ASCII characters (`#000`)
+- Filter with `lighten` blend mode
+- Result: Colored characters on white background
+
+**Inverted Mode**:
+- Black background (`#000`)
+- White ASCII characters (`#fff`)
+- Filter with `lighten` blend mode
+- Result: Colored characters on black background
+
+**Black Mode**:
+- Black background (`#000`)
+- Filter hidden (opacity `0`)
+- ASCII characters use `textColorCycle` animation
+- Result: Cycling colored characters on pure black
+
+**Black-Inverted Mode**:
+- White background (`#fff`)
+- Filter at `z-index: 5` (behind ASCII art)
+- Black ASCII characters (`#000`)
+- Filter with `normal` blend mode
+- Result: Black characters on cycling colored background
+
+#### 3. Text Color Animation
+- **CSS**: `@keyframes textColorCycle` in `style.css:88-123`
+- **Purpose**: Cycles ASCII character color through 6 colors (same as filter)
+- **Usage**: Applied to `.ascii-art` in Black mode
+- **Colors**: Blue → Pink → Green → Yellow → Violet → Orange (66s cycle)
+
+### Technical Implementation
+
+#### Background Color Handler
+**Location**: `main.js:1403-1469`
+
+**Key Properties Managed**:
+- `document.body.style.backgroundColor`
+- `.filter` opacity, mixBlendMode, animation, zIndex
+- `.ascii-art` color, mixBlendMode, animation
+
+**Z-Index Strategy**:
+- Default: Filter at `z-index: 100` (above ASCII at z-index 10)
+- Black-Inverted: Filter at `z-index: 5` (below ASCII at z-index 10)
+
+### Bug Fixes This Session
+
+#### Issue 7: .info Text Invisible
+- **Cause**: Text inherited `color: #000` from body, invisible on dark UI background
+- **Fix**: Added explicit `color: #fff` in CSS
+
+#### Issue 8: Performance Regression from Dynamic Sample Rates
+- **Cause**: Dynamic sample rate calculation based on `--ascii-unit` was expensive
+- **Fix**: Reverted to fixed `sampleRate = 8` (line 199)
+- **Additional Fixes**:
+  - Changed `LETTER_SPACING` from 5 to 10 (line 128)
+  - Removed `TITLE_FONT_WEIGHT` from canvas font rendering
+
+#### Issue 9: RAF Throttling Causing Lag
+- **Cause**: `requestAnimationFrame` queue management overhead
+- **Fix**: Removed RAF wrapper, direct execution in mousemove handler (lines 625-641)
+- **Result**: Browser naturally throttles to refresh rate
+
+#### Issue 10: Span Wrappers Performance Impact
+- **Cause**: `<span class="black">` wrappers around each character
+- **Fix**: Removed spans, characters inherit color from parent (lines 859, 892, 907)
+- **Impact**: Reduced DOM nodes by ~95%, improved animation smoothness
+
+#### Issue 11: Black Mode Color Issues
+- **Problem**: Clearing inline style reverted to CSS default `#000`
+- **Solution**: Created `textColorCycle` animation for direct color animation
+- **Result**: Characters cycle through colors without filter overlay
+
+#### Issue 12: Black-Inverted Z-Index
+- **Problem**: Filter overlaying ASCII characters (both showing filter color)
+- **Solution**: Lower filter z-index to 5, ASCII stays at 10
+- **Result**: Filter shows as background, black characters visible on top
+
+### File Changes
+
+#### index.html
+- Added `.info` instruction div (lines 25-27)
+- Added `backgroundColor` dropdown (lines 46-54)
+- Renamed CSS classes: `.font-control-group` → `.control-group`
+
+#### style.css
+- Added `textColorCycle` keyframe animation (lines 88-123)
+- Updated class names throughout
+- Added `.ui .info` styling
+- Updated selector specificity
+
+#### main.js
+- Added `toggleUIVisibility()` function (lines 1290-1296)
+- Added spacebar event listener (lines 1335-1341)
+- Added background color change handler (lines 1403-1469)
+- Removed RAF throttling from mousemove (lines 625-641)
+- Removed span wrappers from rendering (lines 859, 892, 907)
+- Reverted to fixed sample rate (line 199)
+- Changed letter spacing to 10 (line 128)
+
+### Configuration Updates
+
+```javascript
+const LETTER_SPACING = 10;  // Was 5, now matches original
+const sampleRate = 8;       // Fixed, not dynamic
+```
+
+### Performance Notes
+
+- Fixed sample rate maintains consistent performance across all `--ascii-unit` values
+- Direct mousemove execution is faster than RAF for event-driven updates
+- Removing span wrappers significantly reduced DOM complexity
+- Parent color inheritance simplifies state management
+
+### Z-Index Hierarchy
+
+```
+z-index: 100 - .ui controls (always on top)
+z-index: 100 - .filter (default, above ASCII)
+z-index: 20  - .image-name-display
+z-index: 10  - .ascii-unified-layer (ASCII art)
+z-index: 5   - .filter (black-inverted mode only)
+```
+
+### Color Mode Summary Table
+
+| Mode           | Background | ASCII Color | Filter Opacity | Filter Blend | Filter Z-Index | ASCII Animation |
+|----------------|------------|-------------|----------------|--------------|----------------|-----------------|
+| White          | #fff       | #000        | 1              | lighten      | 100            | none            |
+| Inverted       | #000       | #fff        | 1              | lighten      | 100            | none            |
+| Black          | #000       | animated    | 0              | normal       | -              | textColorCycle  |
+| Black-Inverted | #fff       | #000        | 1              | normal       | 5              | none            |

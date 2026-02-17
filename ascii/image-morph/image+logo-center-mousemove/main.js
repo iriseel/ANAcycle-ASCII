@@ -611,8 +611,8 @@ class MorphingAscii {
       lastMouseX = e.clientX;
       lastMouseY = e.clientY;
 
-      // Trigger swap when total distance exceeds 1px
-      if (totalDistance >= 1) {
+      // Trigger swap when total distance exceeds 5px
+      if (totalDistance >= 10) {
         totalDistance = 0; // Reset counter
 
         // Swap characters on the current displayed image only
@@ -844,12 +844,12 @@ class MorphingAscii {
         const textCell = textMask.get(key);
 
         if (textCell) {
-          // Render text character (always visible, always black for lighten blend mode)
-          result += `<span class="black">${textCell.char}</span>`;
+          // Render text character (inherit color from parent)
+          result += textCell.char;
         } else if (revealedPositions.has(i)) {
           // Render revealed image character
           const char = fromData.data[i];
-          result += `<span class="black">${char.char}</span>`;
+          result += char.char;
         } else {
           // Not yet revealed - render as space
           result += ' ';
@@ -877,8 +877,8 @@ class MorphingAscii {
         const textCell = textMask.get(key);
 
         if (textCell) {
-          // Render text character (always black for lighten blend mode)
-          result += `<span class="black">${textCell.char}</span>`;
+          // Render text character (inherit color from parent)
+          result += textCell.char;
         } else {
           // Render image character
           const fromChar = fromData.data[i];
@@ -892,8 +892,8 @@ class MorphingAscii {
             i
           );
 
-          // Generate span for each character (black for lighten blend mode)
-          result += `<span class="black">${morphed.char}</span>`;
+          // Generate character (inherit color from parent)
+          result += morphed.char;
         }
       }
 
@@ -1278,9 +1278,9 @@ async function changeFontSettings(fontFamily, fontWeight) {
 
 // Toggle UI visibility
 function toggleUIVisibility() {
-  const fontControls = document.getElementById('fontControls');
-  if (fontControls) {
-    fontControls.classList.toggle('hidden');
+  const ui = document.getElementById('ui');
+  if (ui) {
+    ui.classList.toggle('hidden');
   }
 }
 
@@ -1332,6 +1332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Add font control listeners
   const fontFamilySelect = document.getElementById('fontFamily');
   const fontWeightSelect = document.getElementById('fontWeight');
+  const backgroundColorSelect = document.getElementById('backgroundColor');
 
   if (fontFamilySelect && fontWeightSelect) {
     // Set initial values
@@ -1386,5 +1387,74 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize weight options
     updateWeightOptions(TITLE_FONT_FAMILY);
+  }
+
+  // Background color change handler
+  if (backgroundColorSelect) {
+    backgroundColorSelect.addEventListener('change', (event) => {
+      event.stopPropagation();
+      const color = event.target.value;
+      const filter = document.querySelector('.filter');
+      const asciiArt = document.querySelector('.ascii-art');
+
+      if (color === 'inverted') {
+        // Inverted: black background, white characters, filter lightens to color
+        document.body.style.backgroundColor = '#000';
+        if (filter) {
+          filter.style.opacity = '1';
+          filter.style.mixBlendMode = 'lighten';
+          filter.style.animation = 'colorCycle 66s linear infinite';
+          filter.style.zIndex = '100';
+        }
+        if (asciiArt) {
+          asciiArt.style.color = '#fff';
+          asciiArt.style.mixBlendMode = 'normal';
+          asciiArt.style.animation = 'none';
+        }
+      } else if (color === 'black-inverted') {
+        // Black-inverted: filter color background, black characters
+        document.body.style.backgroundColor = '#fff';
+        if (filter) {
+          filter.style.opacity = '1';
+          filter.style.mixBlendMode = 'normal';
+          filter.style.animation = 'colorCycle 66s linear infinite';
+          filter.style.zIndex = '5';
+        }
+        if (asciiArt) {
+          asciiArt.style.color = '#000';
+          asciiArt.style.mixBlendMode = 'normal';
+          asciiArt.style.animation = 'none';
+        }
+      } else if (color === 'black') {
+        // Black: black background, colored characters
+        document.body.style.backgroundColor = '#000';
+        if (filter) {
+          filter.style.opacity = '0';
+          filter.style.mixBlendMode = 'normal';
+          filter.style.animation = 'none';
+        }
+        if (asciiArt) {
+          asciiArt.style.color = '';
+          asciiArt.style.mixBlendMode = 'normal';
+          asciiArt.style.animation = 'textColorCycle 66s linear infinite';
+        }
+      } else {
+        // White background: normal mode
+        document.body.style.backgroundColor = '#fff';
+        if (filter) {
+          filter.style.opacity = '1';
+          filter.style.mixBlendMode = 'lighten';
+          filter.style.animation = 'colorCycle 66s linear infinite';
+          filter.style.zIndex = '100';
+        }
+        if (asciiArt) {
+          asciiArt.style.color = '#000';
+          asciiArt.style.mixBlendMode = 'normal';
+          asciiArt.style.animation = 'none';
+        }
+      }
+
+      console.log(`Background color changed to: ${color}`);
+    });
   }
 });
