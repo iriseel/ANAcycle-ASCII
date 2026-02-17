@@ -20,7 +20,27 @@ const COLOR_SET = [
     name: 'Black & White',
     dark: { r: 0, g: 0, b: 0 },
     light: { r: 255, g: 255, b: 255 }
-  }
+  },
+  // {
+  //   name: 'Blue & Yellow',
+  //   dark: { r: 30, g: 80, b: 200 },
+  //   light: { r: 255, g: 220, b: 60 }
+  // },
+  // {
+  //   name: 'Pink & Green',
+  //   dark: { r: 255, g: 61, b: 130 },
+  //   light: { r: 0, g: 255, b: 147 }
+  // },
+  // {
+  //   name: 'Violet & Orange',
+  //   dark: { r: 138, g: 43, b: 226 },
+  //   light: { r: 255, g: 140, b: 0 }
+  // },
+  // {
+  //   name: 'Red & Green',
+  //   dark: { r: 220, g: 20, b: 60 },
+  //   light: { r: 50, g: 205, b: 50 }
+  // }
 ];
 
 // Current duotone color configuration (will be updated from COLOR_SET)
@@ -34,7 +54,32 @@ let DUOTONE = {
 const CHARACTER_SETS = [
   ['.', '○', '∴', '⁘', '∗', '◎'],
   ['.', '☐', '✧', '✦', '★', '⊕'],
-  ['.', '∘', '▫', '✫', '◇', '◓']
+  ['.', '∘', '▫', '✫', '◇', '◓'],
+
+  
+  // ['.', '○', '∴', '⁘', '∗', '◎'],
+  // ['.', '·', '✦', '✧', '★', '⊕'],
+  // ['.', '∘', '▫', '∙', '*', '⊕'],
+  // ['.', '▪', '▮', '█', '▓', '▒'],
+  // ['.', '░', '▒', '▓', '█', '▀'],
+  // ['.', '▔', '▢', '▣', '▤', '▥'],
+  // ['.', '◇', '◈', '◉', '●', '⬤'],
+  // ['.', '▪', '◼', '◽', '◾', '◿'],
+  // ['.', '▭', '▬', '▮', '▯', '▰'],
+  // ['.', '☐', '☑', '☒', '☓', '☔'],
+  // ['.', '⬚', '⬛', '⬜', '⬝', '⬞'],
+  // ['.', '▝', '▞', '▟', '▲', '▼'],
+  // ['.', '◀', '▶', '◢', '◣', '◤'],
+  // ['.', '◥', '★', '✦', '✧', '✨'],
+  // ['.', '✪', '✫', '✬', '✭', '✮'],
+  // ['.', '⚫', '⚬', '⚪', '⚭', '⚮'],
+  // ['.', '░', '▒', '▓', '█', '▀'],
+  // ['.', '▘', '▙', '▚', '▛', '▜'],
+  // ['.', '▪', '▮', '░', '▒', '▓'],
+  // ['.', '◗', '◖', '◕', '◔', '◓'],
+  // ['.', '▔', '▢', '▣', '▤', '▥'],
+  // ['.', '▴', '*', '░', '▒'],
+  // ['.', '●', '◯', '◬', '◭', '◮'],
 ];
 
 const TITLE_CHARACTER_SETS = [
@@ -54,13 +99,30 @@ const TITLE_CHARACTER_SET = TITLE_CHARACTER_SETS[0];
 const TEXT_OVERLAY = 'ANACYCLE';
 
 // Title font family (used for text overlay rendering)
-let TITLE_FONT_FAMILY = 'Sharp Earth Mono';
-
-// Title font weight (used for text overlay rendering)
-let TITLE_FONT_WEIGHT = 800;
+const TITLE_FONT_FAMILY = 'Modern Gothic Mono';
 
 // Toggle state for minimal mode
 let isMinimalMode = false;
+
+// Filter color cycle - matches CSS animation
+const FILTER_COLORS = [
+  { r: 9, g: 194, b: 255 },    // Blue
+  { r: 255, g: 179, b: 200 },  // Pink
+  { r: 38, g: 255, b: 0 },     // Green
+  { r: 255, g: 239, b: 9 },    // Yellow
+  { r: 200, g: 150, b: 255 },  // Violet
+  { r: 255, g: 175, b: 70 }    // Orange
+];
+
+// Get current filter color based on time
+function getCurrentFilterColor() {
+  const cycleDuration = 66000; // 66 seconds in ms
+  const colorDuration = cycleDuration / FILTER_COLORS.length; // 11s per color
+  const now = Date.now();
+  const cyclePosition = (now % cycleDuration) / cycleDuration;
+  const colorIndex = Math.floor(cyclePosition * FILTER_COLORS.length);
+  return FILTER_COLORS[colorIndex];
+}
 
 // ============================================
 // DUOTONE COLOR MAPPING
@@ -100,6 +162,16 @@ function getDuotoneColor(brightness) {
     r: 0,
     g: 0,
     b: 0
+  };
+}
+
+// Brighten a color by moving it closer to white
+function brightenColor(color, amount = 0.5) {
+  // amount: 0 = original color, 1 = white
+  return {
+    r: Math.min(255, Math.round(color.r + (255 - color.r) * amount)),
+    g: Math.min(255, Math.round(color.g + (255 - color.g) * amount)),
+    b: Math.min(255, Math.round(color.b + (255 - color.b) * amount))
   };
 }
 
@@ -241,7 +313,7 @@ function populateHiddenImages() {
 
   THUMBNAIL_IMAGES.forEach((filename, index) => {
     const img = document.createElement('img');
-    img.src = `assets/thumbnails/${filename}`;
+    img.src = `../../../assets/thumbnails/${filename}`;
     img.alt = `Image ${index + 1}`;
     img.className = 'source-img';
     img.dataset.index = index;
@@ -478,6 +550,7 @@ class MorphingAscii {
 
     // Initial load animation state
     this.isInitialLoad = true;
+    this.initialLoadOpacity = 0;
 
     // Extract image names from src attributes
     this.imageNames = this.images.map(img => {
@@ -575,8 +648,7 @@ class MorphingAscii {
     this.isInitialized = true;
 
     // Start click listener
-    const asciiContainer = document.querySelector('.ascii-container');
-    asciiContainer.addEventListener('click', this.handleClick);
+    document.addEventListener('click', this.handleClick);
     window.addEventListener('resize', () => this.handleResize());
 
     // Add mousemove listener for character cycling
@@ -784,7 +856,7 @@ class MorphingAscii {
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  render(progress = 0) {
+  render(progress = 0, imageOpacity = 1) {
     const fromIndex = this.currentImageIndex;
     const toIndex = this.targetImageIndex;
 
@@ -803,7 +875,7 @@ class MorphingAscii {
       : new Map();
 
     // Morph between the two images with text masking
-    const morphedHTML = this.morphCharactersUnified(fromData, toData, progress, textMask);
+    const morphedHTML = this.morphCharactersUnified(fromData, toData, progress, textMask, imageOpacity);
 
     // Update DOM (unified grid - single element)
     this.asciiArt.innerHTML = morphedHTML;
@@ -845,11 +917,11 @@ class MorphingAscii {
 
         if (textCell) {
           // Render text character (always visible, always black for lighten blend mode)
-          result += `<span class="black">${textCell.char}</span>`;
+          result += `<span style="color:rgb(0,0,0)">${textCell.char}</span>`;
         } else if (revealedPositions.has(i)) {
           // Render revealed image character
           const char = fromData.data[i];
-          result += `<span class="black">${char.char}</span>`;
+          result += `<span style="color:rgb(${char.r},${char.g},${char.b})">${char.char}</span>`;
         } else {
           // Not yet revealed - render as space
           result += ' ';
@@ -863,7 +935,7 @@ class MorphingAscii {
     return result;
   }
 
-  morphCharactersUnified(fromData, toData, progress, textMask) {
+  morphCharactersUnified(fromData, toData, progress, textMask, imageOpacity = 1) {
     let result = '';
     const width = fromData.width;
     const height = fromData.height;
@@ -878,13 +950,13 @@ class MorphingAscii {
 
         if (textCell) {
           // Render text character (always black for lighten blend mode)
-          result += `<span class="black">${textCell.char}</span>`;
+          result += `<span style="color:rgb(0,0,0)">${textCell.char}</span>`;
         } else {
-          // Render image character
+          // Render image character with opacity control
           const fromChar = fromData.data[i];
           const toChar = toData.data[i];
 
-          // Interpolate between characters
+          // Interpolate between characters and colors
           const morphed = this.interpolateCharacter(
             fromChar,
             toChar,
@@ -892,8 +964,11 @@ class MorphingAscii {
             i
           );
 
-          // Generate span for each character (black for lighten blend mode)
-          result += `<span class="black">${morphed.char}</span>`;
+          // Apply opacity to image characters during initial load
+          const opacity = imageOpacity < 1 ? `;opacity:${imageOpacity}` : '';
+
+          // Generate colored span for each character (black for lighten blend mode)
+          result += `<span style="color:rgb(${morphed.r},${morphed.g},${morphed.b})${opacity}">${morphed.char}</span>`;
         }
       }
 
@@ -964,6 +1039,7 @@ class MorphingAscii {
 // Store text overlay states for morphing
 let currentTextData = null;
 let targetTextData = null;
+let textMaskCache = null; // Cache text mask grid positions
 
 // Generate new text data
 function generateTextData() {
@@ -1243,48 +1319,6 @@ function toggleMinimalMode() {
 }
 
 // ============================================
-// FONT CONTROLS
-// ============================================
-
-// Change font settings for both title and ASCII characters
-async function changeFontSettings(fontFamily, fontWeight) {
-  // Update JavaScript variables
-  TITLE_FONT_FAMILY = fontFamily;
-  TITLE_FONT_WEIGHT = parseInt(fontWeight);
-
-  // Update CSS body font
-  document.body.style.fontFamily = `'${fontFamily}', Courier, monospace`;
-  document.body.style.fontWeight = fontWeight;
-
-  // Wait for font to load
-  try {
-    await document.fonts.load(`${TITLE_FONT_WEIGHT} 90px "${TITLE_FONT_FAMILY}"`);
-    console.log(`${TITLE_FONT_FAMILY} (${TITLE_FONT_WEIGHT}) loaded`);
-  } catch (err) {
-    console.warn('Font loading failed:', err);
-  }
-
-  // Regenerate text data with new font
-  currentTextData = generateTextData();
-  targetTextData = generateTextData();
-
-  // Re-render with new font
-  if (window.morphingInstance) {
-    window.morphingInstance.render(0);
-  }
-
-  console.log(`Font changed to: ${fontFamily} ${fontWeight}`);
-}
-
-// Toggle UI visibility
-function toggleUIVisibility() {
-  const fontControls = document.getElementById('fontControls');
-  if (fontControls) {
-    fontControls.classList.toggle('hidden');
-  }
-}
-
-// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -1303,8 +1337,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Wait for custom font to load
   try {
-    await document.fonts.load(`${TITLE_FONT_WEIGHT} 90px "${TITLE_FONT_FAMILY}"`);
-    console.log(`${TITLE_FONT_FAMILY} font loaded`);
+    await document.fonts.load('90px "Druk Wide"');
+    console.log('Druk Wide font loaded');
   } catch (err) {
     console.warn('Font loading failed, falling back to sans-serif:', err);
   }
@@ -1321,70 +1355,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     morphing.init();
   });
 
-  // Add spacebar listener to toggle UI visibility
+  // Add spacebar listener for screen recording
   document.addEventListener('keydown', (event) => {
     if (event.code === 'Space' && event.target === document.body) {
       event.preventDefault(); // Prevent page scroll
-      toggleUIVisibility();
+      toggleRecording();
     }
   });
 
-  // Add font control listeners
-  const fontFamilySelect = document.getElementById('fontFamily');
-  const fontWeightSelect = document.getElementById('fontWeight');
-
-  if (fontFamilySelect && fontWeightSelect) {
-    // Set initial values
-    fontFamilySelect.value = TITLE_FONT_FAMILY;
-    fontWeightSelect.value = TITLE_FONT_WEIGHT.toString();
-
-    // Update available weights based on font family
-    function updateWeightOptions(fontFamily) {
-      const sharpEarthWeights = ['200', '300', '400', '500', '700', '800'];
-      const modernGothicWeights = ['200', '300', '500'];
-
-      const weights = fontFamily === 'Modern Gothic Mono' ? modernGothicWeights : sharpEarthWeights;
-      const currentWeight = fontWeightSelect.value;
-
-      // Clear and rebuild options
-      fontWeightSelect.innerHTML = '';
-      weights.forEach(weight => {
-        const option = document.createElement('option');
-        option.value = weight;
-        const labels = {
-          '200': '200 - Thin',
-          '300': '300 - Light',
-          '400': '400 - Regular',
-          '500': '500 - Medium',
-          '700': '700 - Bold',
-          '800': '800 - Extra Bold'
-        };
-        option.textContent = labels[weight];
-        fontWeightSelect.appendChild(option);
-      });
-
-      // Restore previous weight if available, otherwise select first option
-      if (weights.includes(currentWeight)) {
-        fontWeightSelect.value = currentWeight;
-      } else {
-        fontWeightSelect.value = weights[0];
-      }
-    }
-
-    // Font family change handler
-    fontFamilySelect.addEventListener('change', (event) => {
-      event.stopPropagation();
-      updateWeightOptions(event.target.value);
-      changeFontSettings(fontFamilySelect.value, fontWeightSelect.value);
+  // Add toggle button listener
+  const toggleButton = document.getElementById('toggleButton');
+  if (toggleButton) {
+    toggleButton.addEventListener('click', (event) => {
+      event.stopPropagation(); // Prevent triggering image transition click
+      toggleMinimalMode();
     });
-
-    // Font weight change handler
-    fontWeightSelect.addEventListener('change', (event) => {
-      event.stopPropagation();
-      changeFontSettings(fontFamilySelect.value, fontWeightSelect.value);
-    });
-
-    // Initialize weight options
-    updateWeightOptions(TITLE_FONT_FAMILY);
   }
 });

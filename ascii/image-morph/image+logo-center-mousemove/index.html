@@ -20,8 +20,30 @@
     <!-- Fixed image name display -->
     <div class="image-name-display" id="imageName"></div>
 
-    <!-- Toggle button for minimal mode -->
-    <!-- <button class="toggle-button" id="toggleButton">MINIMAL</button> -->
+    <!-- Font selection UI -->
+    <div class="font-controls" id="fontControls">
+        <div class="info">
+            To toggle the UI visibility, press Space.
+        </div>
+        <div class="font-control-group">
+            <label for="fontFamily">Font:</label>
+            <select id="fontFamily">
+                <option value="Sharp Earth Mono">Sharp Earth Mono</option>
+                <option value="Modern Gothic Mono">Modern Gothic Mono</option>
+            </select>
+        </div>
+        <div class="font-control-group">
+            <label for="fontWeight">Weight:</label>
+            <select id="fontWeight">
+                <option value="200">200 - Thin</option>
+                <option value="300">300 - Light</option>
+                <option value="400">400 - Regular</option>
+                <option value="500">500 - Medium</option>
+                <option value="700">700 - Bold</option>
+                <option value="800">800 - Extra Bold</option>
+            </select>
+        </div>
+    </div>
 
     <!-- Hidden images for processing (populated via JS) -->
     <div class="hidden-images" id="hiddenImages"></div>
