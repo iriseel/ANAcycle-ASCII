@@ -1,62 +1,62 @@
 @font-face {
     font-family: 'Modern Gothic Mono';
-    src: url('assets/fonts/ModernGothic/ModernGothicMono-Thin-trial.otf') format('opentype');
+    src: url('../../../assets/fonts/ModernGothic/ModernGothicMono-Thin-trial.otf') format('opentype');
     font-weight: 200;
     font-style: normal;
 }
  
 @font-face {
     font-family: 'Modern Gothic Mono';
-    src: url('assets/fonts/ModernGothic/ModernGothicMono-Light-trial.otf') format('opentype');
+    src: url('../../../assets/fonts/ModernGothic/ModernGothicMono-Light-trial.otf') format('opentype');
     font-weight: 300;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Modern Gothic Mono';
-    src: url('assets/fonts/ModernGothic/ModernGothicMono-Medium-trial.otf') format('opentype');
+    src: url('../../../assets/fonts/ModernGothic/ModernGothicMono-Medium-trial.otf') format('opentype');
     font-weight: 500;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Sharp Earth Mono';
-    src: url('assets/fonts/SharpEarthMono/SharpEarthMono-Thin-Trial.otf') format('opentype');
+    src: url('../../../assets/fonts/SharpEarthMono/SharpEarthMono-Thin-Trial.otf') format('opentype');
     font-weight: 200;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Sharp Earth Mono';
-    src: url('assets/fonts/SharpEarthMono/SharpEarthMono-Light-Trial.otf') format('opentype');
+    src: url('../../../assets/fonts/SharpEarthMono/SharpEarthMono-Light-Trial.otf') format('opentype');
     font-weight: 300;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Sharp Earth Mono';
-    src: url('assets/fonts/SharpEarthMono/SharpEarthMono-Regular-Trial.otf') format('opentype');
+    src: url('../../../assets/fonts/SharpEarthMono/SharpEarthMono-Regular-Trial.otf') format('opentype');
     font-weight: 400;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Sharp Earth Mono';
-    src: url('assets/fonts/SharpEarthMono/SharpEarthMono-Medium-Trial.otf') format('opentype');
+    src: url('../../../assets/fonts/SharpEarthMono/SharpEarthMono-Medium-Trial.otf') format('opentype');
     font-weight: 500;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Sharp Earth Mono';
-    src: url('assets/fonts/SharpEarthMono/SharpEarthMono-Bold-Trial.otf') format('opentype');
+    src: url('../../../assets/fonts/SharpEarthMono/SharpEarthMono-Bold-Trial.otf') format('opentype');
     font-weight: 700;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Sharp Earth Mono';
-    src: url('assets/fonts/SharpEarthMono/SharpEarthMono-ExtraBold-Trial.otf') format('opentype');
+    src: url('../../../assets/fonts/SharpEarthMono/SharpEarthMono-ExtraBold-Trial.otf') format('opentype');
     font-weight: 800;
     font-style: normal;
 }

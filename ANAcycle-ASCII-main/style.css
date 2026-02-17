@@ -1,6 +1,6 @@
 @font-face {
     font-family: 'Modern Gothic Mono';
-    src: url('../../../assets/fonts/ModernGothicMono-Medium-trial.otf') format('opentype');
+    src: url('assets/fonts/ModernGothicMono-Medium-trial.otf') format('opentype');
     font-weight: normal;
     font-style: normal;
 }

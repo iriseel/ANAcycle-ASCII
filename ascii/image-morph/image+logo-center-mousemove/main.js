@@ -241,7 +241,7 @@ function populateHiddenImages() {
 
   THUMBNAIL_IMAGES.forEach((filename, index) => {
     const img = document.createElement('img');
-    img.src = `assets/thumbnails/${filename}`;
+    img.src = `../../../assets/thumbnails/${filename}`;
     img.alt = `Image ${index + 1}`;
     img.className = 'source-img';
     img.dataset.index = index;
