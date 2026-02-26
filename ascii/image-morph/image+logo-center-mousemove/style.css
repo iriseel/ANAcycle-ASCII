@@ -313,6 +313,13 @@ body.minimal-mode {
     pointer-events: none;
 }
 
+.ui .info {
+    font-size: 11px;
+    color: #fff;
+    line-height: 1.4;
+    margin-bottom: 5px;
+}
+
 .control-group {
     display: flex;
     flex-direction: column;
@@ -348,6 +355,19 @@ body.minimal-mode {
     outline: none;
     border-color: #fff;
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* Title toggle specific styling */
+#titleToggle {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    align-self: flex-start;
+    accent-color: #fff;
+}
+
+#titleToggle:hover {
+    opacity: 0.8;
 }
 
 /* Recording indicator */

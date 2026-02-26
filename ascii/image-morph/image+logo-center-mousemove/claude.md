@@ -467,3 +467,198 @@ this.switchThresholds = [...];   // Per-position switching times (0.3-1.0)
 - Lines 907-945: Updated `interpolateCharacter()` with threshold-based switching
 - Lines 200-201: Separated `sampleRateX` and `sampleRateY`
 - Line 128: Letter spacing set to 2 pixels
+
+---
+
+## Session 4: Loading Animation Triggers & Title Toggle
+
+### Features Added
+
+#### 1. Loading Animation Re-trigger on Background Color Change
+**Location**: `main.js:1489-1493`
+
+**Implementation**:
+- Added code to re-initiate loading animation when backgroundColor dropdown changes
+- Calls `startInitialLoadSequence()` after applying color styles
+- Ensures consistent visual experience when switching color modes
+
+**Behavior**:
+- User changes background color → animation restarts from first image
+- Shows ANACYCLE title alone for 1 second
+- Randomly reveals image ASCII characters over next 1 second
+
+#### 2. 'R' Key Shortcut for Animation Restart
+**Location**: `main.js:1347-1353`
+
+**Implementation**:
+- Added 'R' keypress handler within existing keydown event listener
+- Triggers same loading sequence as background color change
+- Useful for screen recording and presentation scenarios
+
+**Key Combination**:
+- Press 'R' → Restart loading animation from first image
+- Spacebar → Toggle UI visibility (existing feature)
+
+#### 3. Title Visibility Toggle
+**Location**: UI control in `index.html:55-58`, logic in `main.js`
+
+**Components**:
+- **Global State**: `isTitleVisible = true` (`main.js:66-67`)
+- **UI Checkbox**: `#titleToggle` checked by default
+- **Mask Logic**: Modified `calculateTextMask()` (`main.js:1067-1068`)
+- **Event Handler**: `main.js:1499-1513`
+
+**Behavior**:
+- **Checked (default)**: Title "ANACYCLE" carves out space from image ASCII
+- **Unchecked**: `calculateTextMask()` returns empty map, image ASCII fills entire space
+- **On Toggle**: Automatically triggers loading animation and resets to first image
+
+**Implementation Approach**:
+- Simple early return in `calculateTextMask()` when title is hidden
+- No changes to rendering logic or character masking system
+- Image ASCII naturally fills space when no text mask is provided
+
+#### 4. Title Toggle Checkbox Styling
+**Location**: `style.css:354-364`
+
+**Styling**:
+```css
+#titleToggle {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    align-self: flex-start;
+    accent-color: #fff;
+}
+```
+
+**Features**:
+- Larger size (24px vs default ~13-16px)
+- Left-aligned within control group
+- White accent color matches UI theme
+- Hover opacity effect for better UX
+
+### Bug Fixes This Session
+
+#### Issue 16: Image Flash After Animation Re-trigger
+**Cause**: When loading animation restarted after user had clicked to advance images, `currentImageIndex` and `targetImageIndex` remained at advanced positions (e.g., image 2 or 3). First click after animation would jump to wrong image.
+
+**Fix**: `main.js:717-719`
+```javascript
+startInitialLoadSequence() {
+  // Reset to first image
+  this.currentImageIndex = 0;
+  this.targetImageIndex = 0;
+  // ... rest of sequence
+}
+```
+
+**Result**: All animation re-triggers now properly reset to first image, ensuring smooth progression.
+
+### UI Changes
+
+#### Updated Info Text
+**Location**: `index.html:26-27`
+
+Added instruction for 'R' key shortcut:
+```
+To toggle the UI visibility, press Space.
+To retrigger the initial loading animation (for screenrecording), press R.
+```
+
+#### New UI Control
+Added Title toggle checkbox in control panel with label "Title:"
+
+### Technical Architecture Updates
+
+#### Animation Re-trigger Flow
+1. **Trigger Sources**:
+   - Background color dropdown change
+   - Title checkbox toggle
+   - 'R' keypress
+
+2. **Common Behavior**:
+   - Set `isInitialLoad = true`
+   - Reset indices: `currentImageIndex = 0`, `targetImageIndex = 0`
+   - Call `startInitialLoadSequence()`
+
+3. **Sequence Execution**:
+   - Phase 1: Show title only (if visible) for 1 second
+   - Phase 2: Randomly reveal image characters for 1 second
+   - Complete: Set `isInitialLoad = false`, normal rendering resumes
+
+#### Title Visibility System
+
+**Data Flow**:
+```
+isTitleVisible (global boolean)
+    ↓
+calculateTextMask() → returns Map or empty Map
+    ↓
+render() / renderWithRevealMask()
+    ↓
+morphCharactersUnified() uses mask to exclude text positions
+    ↓
+Final HTML output (unified grid)
+```
+
+**Key Principle**:
+Title is not rendered separately then hidden. Instead, text mask controls whether positions are reserved for title characters. When mask is empty, image ASCII naturally fills all positions.
+
+### Configuration Variables
+
+```javascript
+// Title visibility (global state)
+let isTitleVisible = true;  // Line 66-67
+
+// Controlled by UI checkbox #titleToggle
+```
+
+### File Changes Summary
+
+**index.html**:
+- Line 26-27: Updated info text with 'R' key instruction
+- Lines 55-58: Added title toggle checkbox control
+
+**main.js**:
+- Lines 66-67: Added `isTitleVisible` global state variable
+- Lines 717-719: Reset image indices in `startInitialLoadSequence()`
+- Lines 1067-1068: Early return in `calculateTextMask()` when title hidden
+- Lines 1347-1353: Added 'R' keypress handler
+- Lines 1489-1493: Re-trigger animation on background color change
+- Lines 1499-1513: Title toggle event handler
+
+**style.css**:
+- Lines 316-321: Added `.ui .info` styling
+- Lines 354-364: Added `#titleToggle` checkbox styling
+
+### User Experience Improvements
+
+1. **Consistent Animations**: Every setting change triggers a fresh loading animation, providing visual continuity
+2. **Screen Recording Support**: 'R' key allows easy animation restart for recording demos
+3. **Flexible Composition**: Title can be toggled to show pure image ASCII or integrated title+image
+4. **Visual Feedback**: Larger, styled checkbox makes title toggle more discoverable and easier to use
+5. **No Flash Bug**: Image progression now smooth regardless of when animation is re-triggered
+
+### Design Decisions
+
+#### Why Reset to First Image?
+Loading animation is designed to introduce the experience. Re-triggering suggests user wants to "start over" the visual sequence, so resetting to first image is most intuitive behavior.
+
+#### Why Trigger Animation on Settings Change?
+- **Visual Consistency**: Avoids jarring instant swaps when changing appearance
+- **User Delight**: Smooth animations feel more polished than instant changes
+- **Functional Clarity**: Loading sequence clearly shows what's happening during transition
+
+#### Why Empty Mask Instead of Hiding Title?
+- **Simpler Implementation**: No need to conditionally render or hide title elements
+- **True Integration**: Image ASCII naturally fills space rather than overlaying hidden elements
+- **Performance**: No hidden DOM elements or CSS opacity tricks needed
+
+### Performance Notes
+
+- No performance impact from title toggle (same rendering path, just different mask)
+- Animation re-triggers don't create memory leaks (reuses existing data structures)
+- Index resets prevent state drift over multiple animation cycles
+
+---

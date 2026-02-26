@@ -62,6 +62,9 @@ let TITLE_FONT_WEIGHT = 800;
 // Toggle state for minimal mode
 let isMinimalMode = false;
 
+// Title visibility state
+let isTitleVisible = true;
+
 // ============================================
 // DUOTONE COLOR MAPPING
 // ============================================
@@ -714,6 +717,10 @@ class MorphingAscii {
   startInitialLoadSequence() {
     console.log('Starting initial load sequence...');
 
+    // Reset to first image
+    this.currentImageIndex = 0;
+    this.targetImageIndex = 0;
+
     // Phase 1: Show text only for 1 second
     this.updateImageName(0);
     this.renderWithRevealMask(new Set()); // Render with no image characters visible (text only)
@@ -1061,6 +1068,9 @@ function cycleTextCharacters() {
 function calculateTextMask(textData, gridWidth, gridHeight, charWidth, charHeight) {
   const mask = new Map();
 
+  // If title is hidden, return empty mask so image ASCII fills the entire space
+  if (!isTitleVisible) return mask;
+
   if (!textData || textData.length === 0) return mask;
 
   // Calculate text dimensions in characters
@@ -1343,6 +1353,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       event.preventDefault(); // Prevent page scroll
       toggleUIVisibility();
     }
+
+    // Add 'r' key listener to re-initiate loading animation
+    if (event.key === 'r' && event.target === document.body) {
+      if (window.morphingInstance) {
+        window.morphingInstance.isInitialLoad = true;
+        window.morphingInstance.startInitialLoadSequence();
+      }
+    }
   });
 
   // Add font control listeners
@@ -1471,6 +1489,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       console.log(`Background color changed to: ${color}`);
+
+      // Re-initiate loading animation
+      if (window.morphingInstance) {
+        window.morphingInstance.isInitialLoad = true;
+        window.morphingInstance.startInitialLoadSequence();
+      }
+    });
+  }
+
+  // Title toggle handler
+  const titleToggle = document.getElementById('titleToggle');
+  if (titleToggle) {
+    titleToggle.addEventListener('change', (event) => {
+      event.stopPropagation();
+      isTitleVisible = event.target.checked;
+
+      console.log(`Title visibility changed to: ${isTitleVisible}`);
+
+      // Re-initiate loading animation
+      if (window.morphingInstance) {
+        window.morphingInstance.isInitialLoad = true;
+        window.morphingInstance.startInitialLoadSequence();
+      }
     });
   }
 });

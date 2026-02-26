@@ -7,7 +7,8 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="filter color-animation-active"></div>
+    <!-- THIS IS THE COLOR FILTER -->
+    <!-- <div class="filter color-animation-active"></div> -->
     
     <!-- Container (hidden for click version) -->
     <div class="scroll-container" id="scrollContainer"></div>
@@ -23,7 +24,7 @@
     <!-- Font selection UI -->
     <div class="ui" id="ui">
         <div class="info">
-            To toggle the UI visibility, press Space.
+            To toggle the UI visibility, press Space. To retrigger the initial loading animation (for screenrecording), press R.
         </div>
         <div class="control-group">
             <label for="fontFamily">Font:</label>
@@ -51,6 +52,10 @@
                 <option value="black">Black</option>
                 <option value="black-inverted">Black Inverted</option>
             </select>
+        </div>
+        <div class="control-group">
+            <label for="titleToggle">Title:</label>
+            <input type="checkbox" id="titleToggle" checked>
         </div>
     </div>
 
