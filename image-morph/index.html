@@ -24,7 +24,9 @@
     <!-- Font selection UI -->
     <div class="ui" id="ui">
         <div class="info">
-            To toggle the UI visibility, press Space. To retrigger the initial loading animation (for screenrecording), press R.
+            To toggle the UI visibility, press Space. 
+            To retrigger the initial loading animation (for screenrecording), press R.
+            To trigger a fadeout animation, press D.
         </div>
         <div class="control-group">
             <label for="fontFamily">Font:</label>
@@ -56,6 +58,10 @@
         <div class="control-group">
             <label for="titleToggle">Title:</label>
             <input type="checkbox" id="titleToggle" checked>
+        </div>
+        <div class="control-group">
+            <label for="densitySlider">Density: <span id="densityValue">100</span>%</label>
+            <input type="range" id="densitySlider" min="0" max="100" value="100" step="1">
         </div>
     </div>
 

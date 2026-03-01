@@ -65,6 +65,13 @@ let isMinimalMode = false;
 // Title visibility state
 let isTitleVisible = true;
 
+// Density control state (0-100, where 100 = full density)
+let characterDensity = 100;
+
+// Density animation state
+let densityAnimationFrame = null;
+let isDensityAnimating = false;
+
 // ============================================
 // DUOTONE COLOR MAPPING
 // ============================================
@@ -246,7 +253,7 @@ function populateHiddenImages() {
 
   THUMBNAIL_IMAGES.forEach((filename, index) => {
     const img = document.createElement('img');
-    img.src = `../../../assets/thumbnails/${filename}`;
+    img.src = `../assets/thumbnails/${filename}`;
     img.alt = `Image ${index + 1}`;
     img.className = 'source-img';
     img.dataset.index = index;
@@ -819,8 +826,11 @@ class MorphingAscii {
       ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
       : new Map();
 
-    // Morph between the two images with text masking
-    const morphedHTML = this.morphCharactersUnified(fromData, toData, progress, textMask);
+    // Calculate density mask (positions to hide)
+    const densityMask = calculateDensityMask(this.gridWidth, this.gridHeight, characterDensity);
+
+    // Morph between the two images with text masking and density masking
+    const morphedHTML = this.morphCharactersUnified(fromData, toData, progress, textMask, densityMask);
 
     // Update DOM (unified grid - single element)
     this.asciiArt.innerHTML = morphedHTML;
@@ -839,15 +849,18 @@ class MorphingAscii {
       ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
       : new Map();
 
-    // Render with reveal mask
-    const morphedHTML = this.morphCharactersWithReveal(fromData, textMask, revealedPositions);
+    // Calculate density mask (positions to hide)
+    const densityMask = calculateDensityMask(this.gridWidth, this.gridHeight, characterDensity);
+
+    // Render with reveal mask and density mask
+    const morphedHTML = this.morphCharactersWithReveal(fromData, textMask, revealedPositions, densityMask);
 
     // Update DOM
     this.asciiArt.innerHTML = morphedHTML;
   }
 
   // Morph characters with reveal mask (for initial load)
-  morphCharactersWithReveal(fromData, textMask, revealedPositions) {
+  morphCharactersWithReveal(fromData, textMask, revealedPositions, densityMask) {
     let result = '';
     const width = fromData.width;
     const height = fromData.height;
@@ -863,6 +876,9 @@ class MorphingAscii {
         if (textCell) {
           // Render text character (inherit color from parent)
           result += textCell.char;
+        } else if (densityMask.has(i)) {
+          // This position is hidden by density mask
+          result += ' ';
         } else if (revealedPositions.has(i)) {
           // Render revealed image character
           const char = fromData.data[i];
@@ -880,7 +896,7 @@ class MorphingAscii {
     return result;
   }
 
-  morphCharactersUnified(fromData, toData, progress, textMask) {
+  morphCharactersUnified(fromData, toData, progress, textMask, densityMask) {
     let result = '';
     const width = fromData.width;
     const height = fromData.height;
@@ -896,6 +912,9 @@ class MorphingAscii {
         if (textCell) {
           // Render text character (inherit color from parent)
           result += textCell.char;
+        } else if (densityMask.has(i)) {
+          // This position is hidden by density mask
+          result += ' ';
         } else {
           // Render image character
           const fromChar = fromData.data[i];
@@ -1108,6 +1127,58 @@ function calculateTextMask(textData, gridWidth, gridHeight, charWidth, charHeigh
   return mask;
 }
 
+// Generate a density mask - returns a Set of positions to hide based on density percentage
+// Uses a stable cumulative pattern where positions hide in a consistent order
+let shuffledPositions = null; // Stable shuffled order of all positions
+let lastGridDimensions = '';
+
+function calculateDensityMask(gridWidth, gridHeight, densityPercent) {
+  const currentDimensions = `${gridWidth}x${gridHeight}`;
+  const totalPositions = gridWidth * gridHeight;
+
+  // Return empty set if density is 100% (all characters visible)
+  if (densityPercent >= 100) {
+    return new Set();
+  }
+
+  // Regenerate shuffled positions if grid dimensions changed
+  if (!shuffledPositions || lastGridDimensions !== currentDimensions) {
+    // Create array of all positions
+    shuffledPositions = [];
+    for (let i = 0; i < totalPositions; i++) {
+      shuffledPositions.push(i);
+    }
+
+    // Shuffle array using Fisher-Yates with a fixed seed for consistency
+    // This creates a stable order that doesn't change between density adjustments
+    let random = 12345; // Fixed seed for consistent pattern
+    function seededRandom() {
+      random = (random * 9301 + 49297) % 233280;
+      return random / 233280;
+    }
+
+    for (let i = shuffledPositions.length - 1; i > 0; i--) {
+      const j = Math.floor(seededRandom() * (i + 1));
+      [shuffledPositions[i], shuffledPositions[j]] = [shuffledPositions[j], shuffledPositions[i]];
+    }
+
+    lastGridDimensions = currentDimensions;
+  }
+
+  // Calculate how many positions to hide based on density
+  const hideRatio = 1 - (densityPercent / 100);
+  const positionsToHide = Math.floor(totalPositions * hideRatio);
+
+  // Build cumulative set - always hide the first N positions from shuffled order
+  // This ensures that as density decreases, previously hidden positions stay hidden
+  const hiddenPositions = new Set();
+  for (let i = 0; i < positionsToHide; i++) {
+    hiddenPositions.add(shuffledPositions[i]);
+  }
+
+  return hiddenPositions;
+}
+
 // Morph text overlay data based on transition progress
 // Returns morphed text data (but doesn't render - that happens in unified grid)
 function morphTextData(progress) {
@@ -1310,6 +1381,58 @@ function toggleUIVisibility() {
   }
 }
 
+// Animate density from 100% to 15% over 2 seconds
+function animateDensity() {
+  // Cancel any existing animation
+  if (densityAnimationFrame) {
+    cancelAnimationFrame(densityAnimationFrame);
+  }
+
+  isDensityAnimating = true;
+  const startDensity = 100;
+  const endDensity = 15;
+  const duration = 2000; // 2 seconds
+  const startTime = performance.now();
+
+  const densitySlider = document.getElementById('densitySlider');
+  const densityValue = document.getElementById('densityValue');
+
+  function animate(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1); // 0 to 1
+
+    // Use easeInOutCubic for smooth animation
+    const eased = progress < 0.5
+      ? 4 * progress * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+    // Calculate current density
+    const currentDensity = Math.round(startDensity - (startDensity - endDensity) * eased);
+
+    // Update global state
+    characterDensity = currentDensity;
+
+    // Update UI
+    if (densitySlider) densitySlider.value = currentDensity;
+    if (densityValue) densityValue.textContent = currentDensity;
+
+    // Force re-render
+    if (window.morphingInstance && !window.morphingInstance.isTransitioning) {
+      window.morphingInstance.render();
+    }
+
+    // Continue animation if not finished
+    if (progress < 1) {
+      densityAnimationFrame = requestAnimationFrame(animate);
+    } else {
+      isDensityAnimating = false;
+      densityAnimationFrame = null;
+    }
+  }
+
+  densityAnimationFrame = requestAnimationFrame(animate);
+}
+
 // ============================================
 // INITIALIZATION
 // ============================================
@@ -1360,6 +1483,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.morphingInstance.isInitialLoad = true;
         window.morphingInstance.startInitialLoadSequence();
       }
+    }
+
+    // Add 'd' key listener to animate density from 100% to 15% over 2 seconds
+    if (event.key === 'd' && event.target === document.body) {
+      animateDensity();
     }
   });
 
@@ -1511,6 +1639,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (window.morphingInstance) {
         window.morphingInstance.isInitialLoad = true;
         window.morphingInstance.startInitialLoadSequence();
+      }
+    });
+  }
+
+  // Density slider handler
+  const densitySlider = document.getElementById('densitySlider');
+  const densityValue = document.getElementById('densityValue');
+  if (densitySlider && densityValue) {
+    densitySlider.addEventListener('input', (event) => {
+      const newDensity = parseInt(event.target.value, 10);
+      characterDensity = newDensity;
+      densityValue.textContent = newDensity;
+
+      // Force re-render by triggering a render
+      if (window.morphingInstance && !window.morphingInstance.isTransitioning) {
+        window.morphingInstance.render();
       }
     });
   }

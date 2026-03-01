@@ -662,3 +662,218 @@ Loading animation is designed to introduce the experience. Re-triggering suggest
 - Index resets prevent state drift over multiple animation cycles
 
 ---
+
+## Session 5: Density Control & Animation
+
+### Features Added
+
+#### 1. Density Slider Control
+**Location**: UI control in `index.html:60-63`, logic in `main.js`
+
+**Components**:
+- **Global State**: `characterDensity = 100` (`main.js:68`)
+- **UI Slider**: Range input 0-100% with live value display
+- **Mask Logic**: `calculateDensityMask()` function (`main.js:1126-1175`)
+- **Event Handler**: Real-time slider updates (`main.js:1594-1607`)
+
+**Behavior**:
+- **100% density**: All image ASCII characters visible (no masking)
+- **Lower density**: Characters progressively hidden, creating sparse appearance
+- **Cumulative pattern**: Hidden characters stay hidden as density decreases
+- **Stable randomization**: Same density value always produces same pattern (no flickering)
+
+**Implementation Approach**:
+- Uses **Fisher-Yates shuffle** with fixed seed (12345) to create stable random order
+- Shuffled order generated once per grid dimensions, never changes
+- As density decreases, hides positions sequentially from shuffled array
+- Characters reappear in reverse order as density increases
+- Integrated with existing mask system (works alongside text mask)
+
+#### 2. 'D' Key Density Animation
+**Location**: `main.js:1386-1435` (function), `main.js:1434-1438` (event listener)
+
+**Behavior**:
+- Press 'D' key to trigger smooth animation
+- Animates density from **100% to 15%** over 2 seconds
+- Uses **easeInOutCubic** easing for smooth acceleration/deceleration
+- Updates slider UI and percentage display in real-time
+- Cancels previous animation if triggered again mid-animation
+
+**Implementation**:
+- Uses `requestAnimationFrame` for 60fps animation loop
+- Directly updates `characterDensity` global state
+- Forces re-render on each frame via `morphingInstance.render()`
+- Tracks animation state to prevent overlapping animations
+
+#### 3. Density Mask Rendering Integration
+**Location**: `main.js:804-881` (render methods), `main.js:883-922` (morph functions)
+
+**Modified Functions**:
+- `render()`: Now passes `densityMask` to morphing function
+- `renderWithRevealMask()`: Applies density mask during initial load animation
+- `morphCharactersUnified()`: Checks density mask, renders space for hidden positions
+- `morphCharactersWithReveal()`: Applies density mask alongside reveal mask
+
+**Mask Hierarchy**:
+1. **Text mask**: Title characters (highest priority - never hidden by density)
+2. **Density mask**: Sparse effect (hides image characters only)
+3. **Reveal mask**: Initial load animation
+4. Image characters: Rendered if not masked by above
+
+### Technical Architecture
+
+#### Cumulative Density Pattern
+```javascript
+// One-time shuffle (when grid dimensions change)
+shuffledPositions = [234, 1, 567, 89, ...] // Fixed order
+
+// At 80% density: hide first 20% from shuffled array
+hiddenPositions = {234, 1, 567, ...}
+
+// At 60% density: hide first 40% from shuffled array
+hiddenPositions = {234, 1, 567, 89, ...} // Previous + more
+```
+
+**Key Principle**: Positions are hidden in a consistent order. Lowering density reveals no new characters; raising density only unhides previously hidden ones.
+
+#### Animation Frame Loop
+```javascript
+function animate(currentTime) {
+  const progress = elapsed / duration;
+  const eased = easeInOutCubic(progress);
+  const currentDensity = 100 - (85 * eased); // 100 → 15
+
+  characterDensity = currentDensity;
+  updateUI();
+  forceRender();
+
+  if (progress < 1) requestAnimationFrame(animate);
+}
+```
+
+### Bug Fixes This Session
+
+#### Issue 17: Density Mask Randomizing on Each Adjustment
+- **Cause**: Original implementation shuffled positions based on density value seed
+- **Problem**: Different density values created different random patterns
+- **Fix**: Use fixed seed for shuffle, generate stable order once
+- **Result**: Cumulative hide/reveal pattern, no flickering
+
+### UI Changes
+
+#### Density Control Panel
+**Location**: `index.html:60-63`
+```html
+<label for="densitySlider">Density: <span id="densityValue">100</span>%</label>
+<input type="range" id="densitySlider" min="0" max="100" value="100" step="1">
+```
+
+#### Updated Info Text
+**Location**: `index.html:26-30`
+- Added instruction for 'D' key animation ("fadeout animation")
+
+#### Slider Styling
+**Location**: `style.css:372-432`
+- Custom range slider matching UI theme
+- White thumb (16px) on black track (6px)
+- Hover effects with scale transform
+- Cross-browser support (WebKit and Firefox variants)
+
+### Configuration Variables
+
+```javascript
+// Density control (global state)
+let characterDensity = 100;
+
+// Density animation state
+let densityAnimationFrame = null;
+let isDensityAnimating = false;
+
+// Stable shuffled order (cached)
+let shuffledPositions = null;
+let lastGridDimensions = '';
+```
+
+### Performance Optimizations
+
+- **Shuffle once**: Positions only shuffled when grid dimensions change
+- **Direct array indexing**: O(1) lookup for position hiding
+- **Cached mask**: Returns early if density hasn't changed (removed in final version for simplicity)
+- **RAF animation**: Smooth 60fps with automatic throttling
+- **No DOM mutation during animation**: Only updates transform values
+
+### File Changes Summary
+
+**index.html**:
+- Lines 26-30: Updated info text with 'D' key instruction
+- Lines 60-63: Added density slider control with live value display
+
+**main.js**:
+- Lines 68-71: Added density global state variables
+- Lines 1126-1175: Added `calculateDensityMask()` function with cumulative pattern
+- Lines 804-827: Modified `render()` to apply density mask
+- Lines 829-847: Modified `renderWithRevealMask()` to apply density mask
+- Lines 849-881: Modified `morphCharactersWithReveal()` to check density mask
+- Lines 883-922: Modified `morphCharactersUnified()` to check density mask
+- Lines 1386-1435: Added `animateDensity()` function
+- Lines 1434-1438: Added 'D' keypress event listener
+- Lines 1594-1607: Added density slider input event handler
+
+**style.css**:
+- Lines 372-432: Added density slider styling (track, thumb, hover states)
+
+### Experimental Files Created
+
+**grid-overlay-hide.html**: Option A demo (hide/reveal ASCII on grid collision)
+**grid-overlay-displace.html**: Option B demo (particle displacement physics)
+**type-shrink.html**: Typography animation demo (stroke to fill with scale)
+
+*Note: Grid overlay demos were exploratory research and not integrated into main project.*
+
+### User Experience Improvements
+
+1. **Visual Control**: Manual density adjustment for artistic effect
+2. **Performance Animation**: 'D' key creates smooth fadeout for presentations
+3. **Stable Pattern**: Predictable, non-flickering density changes
+4. **Real-time Feedback**: Live percentage display during slider adjustment
+5. **Smooth Easing**: Professional cubic easing for animation quality
+
+### Design Decisions
+
+#### Why Cumulative Pattern?
+- **Visual Consistency**: Same characters always hide/unhide in same order
+- **No Flicker**: Prevents random character swapping on small adjustments
+- **Predictable**: User can "scrub" density and see smooth progression
+- **Performance**: Single shuffle operation, reused for all density values
+
+#### Why Fixed Seed (12345)?
+- **Reproducible**: Same pattern every session for consistency
+- **Random-looking**: Fisher-Yates creates natural sparse distribution
+- **Debuggable**: Deterministic behavior makes issues easier to track
+
+#### Why 100% → 15% Animation?
+- **Dramatic Effect**: Large range creates impactful visual
+- **Preserves Structure**: 15% leaves enough characters to maintain image recognition
+- **Not 0%**: Complete fadeout would be disorienting; 15% maintains context
+
+### Performance Notes
+
+- Density mask calculation: O(n) where n = positions to hide
+- Spatial distribution: Shuffle ensures even distribution across viewport
+- Animation overhead: Minimal (~1-2ms per frame for state update)
+- No layout thrashing: Only text content changes, not DOM structure
+
+### Known Limitations
+
+- **Title never sparse**: Density only affects image characters, not title
+- **Grid locked**: Shuffle pattern changes if viewport resizes (by design)
+- **Fixed animation**: 'D' key always goes to 15% (not configurable)
+
+### Future Considerations
+
+- Optional: Allow density to affect title characters
+- Optional: Different sparse patterns (clustered, gradient, etc.)
+- Optional: Configurable animation target density
+- Optional: Reverse animation ('Shift+D' to go 15% → 100%)
+
+---

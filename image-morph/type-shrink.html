@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Type Shrink Effect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            font-family: Arial, sans-serif;
+            cursor: pointer;
+        }
+
+        .title {
+            font-size: 120px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            -webkit-text-stroke: 3px #000;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            transition: all 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+            user-select: none;
+        }
+
+        .title.shrunk {
+            font-size: 30px;
+            -webkit-text-stroke: 0px;
+            -webkit-text-fill-color: #000;
+            color: #000;
+        }
+
+        .title.shrunk::before {
+            content: '(';
+            margin-right: 4px;
+        }
+
+        .title.shrunk::after {
+            content: ')';
+            margin-left: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="title" id="title">ANACYCLE</h1>
+
+    <script>
+        const title = document.getElementById('title');
+
+        title.addEventListener('click', () => {
+            title.classList.toggle('shrunk');
+        });
+
+        // Also allow body click
+        document.body.addEventListener('click', (e) => {
+            if (e.target !== title) {
+                title.classList.toggle('shrunk');
+            }
+        });
+    </script>
+</body>
+</html>

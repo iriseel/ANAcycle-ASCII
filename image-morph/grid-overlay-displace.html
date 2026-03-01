@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Overlay - Option B: Particle Displacement</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #fff;
+            overflow-x: hidden;
+        }
+
+        /* ASCII Background Layer - using individual positioned characters */
+        .ascii-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .ascii-particle {
+            position: absolute;
+            font-size: 14px;
+            line-height: 14px;
+            color: #000;
+            transition: none; /* No CSS transitions - we handle movement via transform */
+            will-change: transform;
+        }
+
+        /* Scrollable Grid Layer */
+        .grid-container {
+            position: relative;
+            z-index: 10;
+            padding: 100px 20px;
+            min-height: 200vh;
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Project Card */
+        .project-card {
+            background: #f5f5f5;
+            border: 2px solid #000;
+            padding: 0;
+            transition: transform 0.2s ease;
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .project-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: #fff;
+            border-bottom: 2px solid #000;
+        }
+
+        .project-content {
+            padding: 20px;
+        }
+
+        .project-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .project-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: #000;
+            color: #fff;
+            padding: 4px 12px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Info overlay */
+        .info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 15px 20px;
+            font-size: 12px;
+            z-index: 100;
+            max-width: 300px;
+            line-height: 1.5;
+            border: 2px solid #fff;
+        }
+
+        .info h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        /* Performance stats */
+        .stats {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #0f0;
+            padding: 10px 15px;
+            font-size: 11px;
+            z-index: 100;
+            font-family: monospace;
+            border: 1px solid #0f0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Info -->
+    <div class="info">
+        <h3>OPTION B: Particle Displacement</h3>
+        ASCII characters are "swept" upward by grid elements as they scroll down. Once displaced, particles stay in their new positions. Scroll to see the effect.
+    </div>
+
+    <!-- Performance stats -->
+    <div class="stats" id="stats">
+        FPS: -- | Particles: -- | Displaced: --
+    </div>
+
+    <!-- ASCII Background -->
+    <div class="ascii-background" id="asciiArt"></div>
+
+    <!-- Scrollable Grid -->
+    <div class="grid-container">
+        <div class="projects-grid" id="projectsGrid"></div>
+    </div>
+
+    <script>
+        // ASCII Configuration
+        const CHARACTER_SET = ['.', '○', '∴', '⁘', '∗', '◎', '●', '◉'];
+        const CHAR_WIDTH = 16;
+        const CHAR_HEIGHT = 14;
+
+        // Particle system
+        class AsciiParticle {
+            constructor(gridX, gridY, char) {
+                this.gridX = gridX;
+                this.gridY = gridY;
+                this.char = char;
+                this.offsetX = 0;
+                this.offsetY = 0;
+                this.isDisplaced = false;
+                this.element = null;
+            }
+
+            getRenderX() {
+                return this.gridX * CHAR_WIDTH + this.offsetX;
+            }
+
+            getRenderY() {
+                return this.gridY * CHAR_HEIGHT + this.offsetY;
+            }
+
+            updateTransform() {
+                if (this.element) {
+                    if (this.isDisplaced) {
+                        this.element.style.transform = `translate(${this.offsetX}px, ${this.offsetY}px)`;
+                    } else {
+                        this.element.style.transform = '';
+                    }
+                }
+            }
+        }
+
+        let particles = [];
+        let gridWidth = 0;
+        let gridHeight = 0;
+
+        // Generate particle system
+        function generateParticles() {
+            const asciiContainer = document.getElementById('asciiArt');
+            asciiContainer.innerHTML = ''; // Clear existing
+
+            gridWidth = Math.floor(window.innerWidth / CHAR_WIDTH);
+            gridHeight = Math.floor(window.innerHeight / CHAR_HEIGHT);
+
+            particles = [];
+
+            // Create particle objects and DOM elements
+            for (let y = 0; y < gridHeight; y++) {
+                for (let x = 0; x < gridWidth; x++) {
+                    const char = CHARACTER_SET[Math.floor(Math.random() * CHARACTER_SET.length)];
+                    const particle = new AsciiParticle(x, y, char);
+
+                    // Create DOM element
+                    const span = document.createElement('span');
+                    span.className = 'ascii-particle';
+                    span.textContent = char;
+                    span.style.left = (x * CHAR_WIDTH) + 'px';
+                    span.style.top = (y * CHAR_HEIGHT) + 'px';
+
+                    particle.element = span;
+                    asciiContainer.appendChild(span);
+                    particles.push(particle);
+                }
+            }
+
+            console.log(`Generated ${particles.length} particles (${gridWidth}×${gridHeight})`);
+        }
+
+        // Store previous element positions for delta calculation
+        const elementPrevPositions = new WeakMap();
+
+        // Get particles in a specific region (spatial optimization)
+        function getParticlesInRegion(rect) {
+            const startX = Math.max(0, Math.floor(rect.left / CHAR_WIDTH));
+            const endX = Math.min(gridWidth, Math.ceil(rect.right / CHAR_WIDTH));
+            const startY = Math.max(0, Math.floor(rect.top / CHAR_HEIGHT));
+            const endY = Math.min(gridHeight, Math.ceil(rect.bottom / CHAR_HEIGHT));
+
+            const nearbyParticles = [];
+            for (let y = startY; y < endY; y++) {
+                for (let x = startX; x < endX; x++) {
+                    const index = y * gridWidth + x;
+                    if (particles[index]) {
+                        nearbyParticles.push(particles[index]);
+                    }
+                }
+            }
+
+            return nearbyParticles;
+        }
+
+        // Update particle displacements based on grid element collisions
+        function updateDisplacements() {
+            const projectCards = document.querySelectorAll('.project-card');
+
+            projectCards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const prevRect = elementPrevPositions.get(card);
+
+                if (prevRect) {
+                    // Calculate how much the element moved this frame
+                    const deltaY = rect.top - prevRect.top;
+
+                    // Only process if element moved down (scrolling down)
+                    if (deltaY > 0) {
+                        // Get particles in this element's region
+                        const nearbyParticles = getParticlesInRegion(rect);
+
+                        nearbyParticles.forEach(particle => {
+                            const renderX = particle.getRenderX();
+                            const renderY = particle.getRenderY();
+
+                            // Check if particle is inside element bounds
+                            if (renderX >= rect.left && renderX <= rect.right &&
+                                renderY >= rect.top && renderY <= rect.bottom) {
+
+                                // Push particle upward (negative Y offset)
+                                particle.offsetY -= deltaY;
+                                particle.isDisplaced = true;
+                                particle.updateTransform();
+                            }
+                        });
+                    }
+                }
+
+                // Store current position for next frame
+                elementPrevPositions.set(card, {
+                    top: rect.top,
+                    left: rect.left,
+                    bottom: rect.bottom,
+                    right: rect.right
+                });
+            });
+        }
+
+        // FPS counter
+        let lastFrameTime = performance.now();
+        let fps = 0;
+
+        function updateStats() {
+            const now = performance.now();
+            const delta = now - lastFrameTime;
+            fps = Math.round(1000 / delta);
+            lastFrameTime = now;
+
+            const displacedCount = particles.filter(p => p.isDisplaced).length;
+            document.getElementById('stats').textContent =
+                `FPS: ${fps} | Particles: ${particles.length} | Displaced: ${displacedCount}`;
+        }
+
+        // Main update loop
+        let rafId = null;
+        function onScroll() {
+            if (rafId) return;
+
+            rafId = requestAnimationFrame(() => {
+                updateDisplacements();
+                updateStats();
+                rafId = null;
+            });
+        }
+
+        // Generate dummy project data
+        const projects = [
+            { icon: '🌱', title: 'Life on Mars', tags: ['Biology', 'Space', 'Research'] },
+            { icon: '🍄', title: 'Edible Futures', tags: ['Food', 'Design'] },
+            { icon: '☕', title: 'Algae Sips', tags: ['Sustainability', 'Product'] },
+            { icon: '🏛️', title: 'Closed Worlds', tags: ['Exhibition', 'Art', 'Science'] },
+            { icon: '🏠', title: 'Climate House', tags: ['Architecture', 'Climate'] },
+            { icon: '🔬', title: 'Bio Lab', tags: ['Research', 'Education'] },
+            { icon: '🌊', title: 'Ocean Data', tags: ['Visualization', 'Marine'] },
+            { icon: '🌿', title: 'Urban Garden', tags: ['Community', 'Green Space'] },
+            { icon: '♻️', title: 'Waste to Energy', tags: ['Engineering', 'Sustainability'] },
+            { icon: '🎨', title: 'Generative Art', tags: ['Creative Coding', 'Art'] },
+            { icon: '🧬', title: 'DNA Archive', tags: ['Biotech', 'Data'] },
+            { icon: '🌍', title: 'Earth Monitor', tags: ['Satellite', 'Climate'] }
+        ];
+
+        // Populate grid
+        function populateGrid() {
+            const grid = document.getElementById('projectsGrid');
+            grid.innerHTML = projects.map(project => `
+                <div class="project-card">
+                    <div class="project-image">${project.icon}</div>
+                    <div class="project-content">
+                        <div class="project-title">${project.title}</div>
+                        <div class="project-tags">
+                            ${project.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            populateGrid();
+            generateParticles();
+
+            // Initialize element positions after layout settles
+            setTimeout(() => {
+                const projectCards = document.querySelectorAll('.project-card');
+                projectCards.forEach(card => {
+                    const rect = card.getBoundingClientRect();
+                    elementPrevPositions.set(card, {
+                        top: rect.top,
+                        left: rect.left,
+                        bottom: rect.bottom,
+                        right: rect.right
+                    });
+                });
+            }, 100);
+
+            // Update on scroll
+            window.addEventListener('scroll', onScroll, { passive: true });
+
+            // Update stats periodically
+            setInterval(updateStats, 500);
+
+            // Handle resize
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    generateParticles();
+                }, 300);
+            });
+        });
+    </script>
+</body>
+</html>
