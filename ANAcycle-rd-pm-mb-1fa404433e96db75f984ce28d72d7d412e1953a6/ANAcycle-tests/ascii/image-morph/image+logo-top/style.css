@@ -1,0 +1,260 @@
+@font-face {
+    font-family: 'Druk Wide';
+    src: url('../../../_fonts/DrukWideLCG-Heavy.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+:root {
+    --ascii-unit: 10px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #000;
+    color: #fff;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+body.minimal-mode {
+    background-color: #fff;
+}
+
+/* Hidden container (not needed for click version) */
+.scroll-container {
+    display: none;
+}
+
+/* Hidden sections (not needed for click version) */
+.snap-section {
+    display: none;
+}
+
+/* Fixed container for ASCII art - base styles */
+.ascii-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    overflow: hidden;
+    /* Performance optimizations */
+    will-change: contents;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+/* Image layer - bottom layer */
+.ascii-image-layer {
+    z-index: 10;
+}
+
+/* Text/Logo layer - top layer */
+.ascii-text-layer {
+    z-index: 20;
+    pointer-events: none; /* Allow clicks to pass through to image layer */
+    align-items: flex-start; /* Position text at top instead of center */
+}
+
+/* ASCII art display (images) */
+.ascii-art {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--ascii-unit);
+    line-height: 1.0;
+    white-space: pre;
+    color: #fff;
+    text-align: center;
+    /* GPU acceleration */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
+}
+
+/* ASCII text display (logo overlay) */
+.ascii-text {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--ascii-unit);
+    line-height: 1.0;
+    white-space: pre;
+    color: #fff;
+    text-align: center;
+    /* GPU acceleration */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
+}
+
+/* Colored character spans for both image and text layers */
+.ascii-art span,
+.ascii-text span {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    white-space: inherit;
+}
+
+/* Hidden images for processing */
+.hidden-images {
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.source-img {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+/* Hidden measurement unit */
+.ascii-unit {
+    position: absolute;
+    visibility: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--ascii-unit);
+    line-height: 1;
+    white-space: pre;
+}
+
+/* Image name display */
+.image-name-display {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 20;
+    pointer-events: none;
+    backdrop-filter: blur(5px);
+    transition: opacity 0.3s ease;
+
+    display:none;
+}
+
+/* Toggle button */
+.toggle-button {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    font-weight: bold;
+    color: #000;
+    background-color: #fff;
+    border: 2px solid #000;
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 30;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.2s ease;
+}
+
+.toggle-button:hover {
+    background-color: #000;
+    color: #fff;
+}
+
+body.minimal-mode .toggle-button {
+    color: #fff;
+    background-color: #000;
+    border: 2px solid #fff;
+}
+
+body.minimal-mode .toggle-button:hover {
+    background-color: #fff;
+    color: #000;
+    border: 2px solid #000;
+}
+
+/* Recording indicator */
+.recording-indicator {
+    position: fixed;
+    top: 30px;
+    right: 30px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    background-color: rgba(255, 0, 0, 0.8);
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 30;
+    pointer-events: none;
+    backdrop-filter: blur(5px);
+    display: none;
+    align-items: center;
+    gap: 8px;
+}
+
+.recording-indicator.active {
+    display: flex;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.rec-dot {
+    width: 12px;
+    height: 12px;
+    background-color: #fff;
+    border-radius: 50%;
+    animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes blink {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
+/* Responsive font sizing */
+@media (max-width: 1200px) {
+    :root {
+        --ascii-unit: 8px;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --ascii-unit: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    :root {
+        --ascii-unit: 5px;
+    }
+}

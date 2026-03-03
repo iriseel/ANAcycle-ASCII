@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANAcycle - Dotted Text Moving</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!--
+    DENSITY CONFIGURATION:
+    - density-start: Initial dot density (0.0 = 0%, 1.0 = 100%)
+    - density-end: Final dot density after scrolling
+
+    Examples:
+    - density-start="0.8" density-end="0.2" = starts at 80%, ends at 20%
+    - density-start="0.05" density-end="0.9" = starts at 5%, ends at 90%
+  -->
+
+  <!-- ANA - dynamically positioned -->
+  <div class="ana-container">
+    <dissolve-element
+      type="text"
+      text="ANA"
+      density-start="1.0"
+      density-end="0.05"
+      track="documentPosition">
+      <div name="line-ruler" style="position: absolute; height: 1em;"></div>
+      <div name="padding-ruler" style="position: absolute; height: var(--space-sm);"></div>
+    </dissolve-element>
+  </div>
+
+  <!-- cycle - dynamically positioned -->
+  <div class="cycle-container">
+    <dissolve-element
+      type="text"
+      text="cycle"
+      density-start="0.1"
+      density-end="0.8"
+      track="documentPosition">
+      <div name="line-ruler" style="position: absolute; height: 1em;"></div>
+      <div name="padding-ruler" style="position: absolute; height: var(--space-sm);"></div>
+    </dissolve-element>
+  </div>
+
+  <!-- Placeholder content for scrolling -->
+  <div class="content">
+    <!-- Generate 48 placeholder boxes -->
+  </div>
+
+  <script src="dissolve-element.js"></script>
+  <script src="migration-manager.js"></script>
+  <script src="position-manager.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

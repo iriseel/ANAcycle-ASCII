@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morphing ASCII Images</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Fixed ASCII display container -->
+    <div class="ascii-container">
+        <div class="ascii-art" id="asciiArt"></div>
+    </div>
+
+    <!-- Fixed image name display -->
+    <div class="image-name-display" id="imageName">1.JPG</div>
+
+    <!-- Hidden images for processing -->
+    <div class="hidden-images">
+        <img src="../_img/1.JPG" alt="Image 1" class="source-img" data-index="0">
+        <img src="../_img/2.jpg" alt="Image 2" class="source-img" data-index="1">
+        <img src="../_img/3.jpg" alt="Image 3" class="source-img" data-index="2">
+    </div>
+
+    <!-- Hidden measurement unit for character sizing -->
+    <span class="ascii-unit">█</span>
+
+    <script src="main.js"></script>
+</body>
+</html>

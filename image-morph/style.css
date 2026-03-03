@@ -20,6 +20,13 @@
 }
 
 @font-face {
+    font-family: 'Modern Gothic Mono';
+    src: url('../assets/fonts/ModernGothic/ModernGothicMono-Black-trial.otf') format('opentype');
+    font-weight: 800;
+    font-style: normal;
+}
+
+@font-face {
     font-family: 'Sharp Earth Mono';
     src: url('../assets/fonts/SharpEarthMono/SharpEarthMono-Thin-Trial.otf') format('opentype');
     font-weight: 200;
@@ -64,7 +71,7 @@
 
 
 :root {
-    --ascii-unit: 14px;
+    --ascii-unit: 12px;
 }
 
 * {
@@ -77,7 +84,7 @@ body {
     font-family: 'Sharp Earth Mono', Courier, monospace;
     /* font-family: 'Modern Gothic Mono', Courier, monospace; */
     font-weight: 500;
-    background-color: #fff;
+    background-color: #000;
     color: white;
     overflow: hidden;
     height: 100vh;
@@ -90,7 +97,7 @@ body.minimal-mode {
     background-color: #fff;
 }
 
-/* COLOR FILTER */
+/* COLOR FILTER - DISABLED for duotone character coloring */
 .filter {
     width: 100vw;
     height:100vh;
@@ -101,8 +108,8 @@ body.minimal-mode {
     background: white;
     pointer-events: none;
     mix-blend-mode: lighten;
-    opacity: 1;
-    animation: colorCycle 66s linear infinite;
+    opacity: 0; /* Disabled by default */
+    animation: none; /* Disabled by default */
     transition: opacity 0.5s ease;
 }
 

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANAcycle - Landing</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ANACYCLE centered on screen -->
+  <div class="anacycle-container">
+    <dissolve-element
+      type="text"
+      text="ANACYCLE"
+      density-start="1.0"
+      density-end="1.0">
+      <div name="line-ruler" style="position: absolute; height: 1em;"></div>
+      <div name="padding-ruler" style="position: absolute; height: 0;"></div>
+    </dissolve-element>
+  </div>
+
+  <script src="dissolve-element.js"></script>
+  <script src="migration-manager.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANA cycle - Circling Logo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    #logo-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+    }
+
+    .letter {
+      position: absolute;
+      font-size: 120px;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: #fff;
+      will-change: transform;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    }
+
+    /* Color variations for letters - different shades of grey */
+    .letter:nth-child(1) { color: #ffffff; }
+    .letter:nth-child(2) { color: #e0e0e0; }
+    .letter:nth-child(3) { color: #c0c0c0; }
+    .letter:nth-child(4) { color: #a0a0a0; }
+    .letter:nth-child(5) { color: #808080; }
+    .letter:nth-child(6) { color: #a0a0a0; }
+    .letter:nth-child(7) { color: #c0c0c0; }
+    .letter:nth-child(8) { color: #e0e0e0; }
+    .letter:nth-child(9) { color: #ffffff; }
+
+    @media (max-width: 768px) {
+      #logo-container {
+        width: 100vw;
+        height: 100vh;
+      }
+
+      .letter {
+        font-size: 60px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="logo-container"></div>
+
+  <script>
+    class CirclingLetter {
+      constructor(char, index, totalLetters, logo) {
+        this.char = char;
+        this.index = index;
+        this.totalLetters = totalLetters;
+        this.logo = logo; // Reference to parent logo for shared state
+
+        // Create DOM element
+        this.element = document.createElement('div');
+        this.element.className = 'letter';
+        this.element.textContent = char;
+        document.getElementById('logo-container').appendChild(this.element);
+
+        // Phase offset for organic motion
+        this.phaseOffset = Math.random() * Math.PI * 2;
+      }
+
+      update(baseAngle, letterSpacing, time, oval) {
+        // Calculate this letter's offset from center of word
+        const centerIndex = (this.totalLetters - 1) / 2;
+        const offsetFromCenter = this.index - centerIndex;
+
+        // Convert letter spacing to angle offset along the oval
+        const angleSpacing = letterSpacing / oval.radiusX; // Approximate arc length to angle
+        // Reverse the offset so A leads (negative offset)
+        const letterAngleOffset = -offsetFromCenter * angleSpacing;
+
+        // Add organic wobble
+        const wobble = Math.sin(time * 0.05 + this.phaseOffset) * 0.005;
+
+        // Calculate position on oval using current oval parameters
+        const finalAngle = baseAngle + letterAngleOffset + wobble;
+        const x = oval.centerX + Math.cos(finalAngle) * oval.radiusX;
+        const y = oval.centerY + Math.sin(finalAngle) * oval.radiusY;
+
+        // Apply transform
+        this.element.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+      }
+
+      easeInOutCubic(t) {
+        return t < 0.5
+          ? 4 * t * t * t
+          : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      }
+    }
+
+    class CirclingLogo {
+      constructor() {
+        this.text = 'ANAcycle';
+        this.letters = [];
+
+        // Shared animation state for all letters
+        this.baseAngle = 0; // Current position on oval
+        this.baseSpeed = 0.015; // Base rotation speed
+        this.currentSpeed = this.baseSpeed;
+
+        // Letter spacing state (more gradual)
+        this.letterSpacing = 75; // Current spacing between letters
+        this.targetLetterSpacing = 75;
+
+        // Oval parameters (will change each cycle)
+        this.currentOval = this.generateRandomOval();
+        this.targetOval = this.generateRandomOval();
+
+        // Animation timing (continuous motion, no pause)
+        this.time = 0;
+        this.cycleDuration = 480; // Full cycle duration (8 seconds at 60fps)
+
+        // Create letter objects
+        for (let i = 0; i < this.text.length; i++) {
+          this.letters.push(new CirclingLetter(this.text[i], i, this.text.length, this));
+        }
+
+        // Start animation
+        this.animate();
+      }
+
+      generateRandomOval() {
+        // Generate random oval parameters
+        const centerX = 300 + Math.random() * 200; // 300-500
+        const centerY = 200 + Math.random() * 200; // 200-400
+        const radiusX = 150 + Math.random() * 150; // 150-300
+        const radiusY = 100 + Math.random() * 120; // 100-220
+
+        return { centerX, centerY, radiusX, radiusY };
+      }
+
+      animate() {
+        this.time++;
+
+        // Continuous cycle with smooth speed variation
+        const cycleTime = this.time % this.cycleDuration;
+        const cycleProgress = cycleTime / this.cycleDuration;
+
+        // Speed varies smoothly: fast → slow → fast (using sine wave)
+        // Speed ranges from 0.4x to 1.6x base speed (never stops)
+        const speedMultiplier = 1.0 + Math.sin(cycleProgress * Math.PI * 2 - Math.PI / 2) * 0.6;
+        this.currentSpeed = this.baseSpeed * speedMultiplier;
+
+        // Letter spacing varies inversely with speed
+        // When fast (spread out), when slow (clustered)
+        // Map speed multiplier (0.4-1.6) to spacing (65-85)
+        this.targetLetterSpacing = 65 + (speedMultiplier - 0.4) * (20 / 1.2);
+
+        // Smooth letter spacing transition
+        this.letterSpacing += (this.targetLetterSpacing - this.letterSpacing) * 0.06;
+
+        // Check if we've reached the target oval (approximately)
+        const distanceToTarget = Math.abs(this.currentOval.centerX - this.targetOval.centerX) +
+                                 Math.abs(this.currentOval.centerY - this.targetOval.centerY) +
+                                 Math.abs(this.currentOval.radiusX - this.targetOval.radiusX) +
+                                 Math.abs(this.currentOval.radiusY - this.targetOval.radiusY);
+
+        // When close to target, generate new random target
+        if (distanceToTarget < 10) {
+          this.targetOval = this.generateRandomOval();
+        }
+
+        // Continuously interpolate toward target oval from current position
+        this.currentOval.centerX += (this.targetOval.centerX - this.currentOval.centerX) * 0.015;
+        this.currentOval.centerY += (this.targetOval.centerY - this.currentOval.centerY) * 0.015;
+        this.currentOval.radiusX += (this.targetOval.radiusX - this.currentOval.radiusX) * 0.015;
+        this.currentOval.radiusY += (this.targetOval.radiusY - this.currentOval.radiusY) * 0.015;
+
+        // Update base angle with current speed
+        this.baseAngle += this.currentSpeed;
+
+        // Update all letters with shared state
+        this.letters.forEach(letter => {
+          letter.update(this.baseAngle, this.letterSpacing, this.time, this.currentOval);
+        });
+
+        requestAnimationFrame(() => this.animate());
+      }
+
+      easeInOutCubic(t) {
+        return t < 0.5
+          ? 4 * t * t * t
+          : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      }
+    }
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      new CirclingLogo();
+    });
+  </script>
+</body>
+</html>

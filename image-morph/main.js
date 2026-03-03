@@ -17,9 +17,24 @@ const TRANSITION_DURATION = 1500;
 // Color pair sets for duotone effects
 const COLOR_SET = [
   {
-    name: 'Black & White',
-    dark: { r: 0, g: 0, b: 0 },
-    light: { r: 255, g: 255, b: 255 }
+    name: 'Blue & Yellow',
+    dark: { r: 30, g: 80, b: 200 },
+    light: { r: 255, g: 220, b: 60 }
+  },
+  {
+    name: 'Pink & Green',
+    dark: { r: 255, g: 61, b: 130 },
+    light: { r: 0, g: 255, b: 147 }
+  },
+  {
+    name: 'Violet & Orange',
+    dark: { r: 138, g: 43, b: 226 },
+    light: { r: 255, g: 140, b: 0 }
+  },
+  {
+    name: 'Red & Green',
+    dark: { r: 220, g: 20, b: 60 },
+    light: { r: 50, g: 205, b: 50 }
   }
 ];
 
@@ -54,10 +69,13 @@ const TITLE_CHARACTER_SET = TITLE_CHARACTER_SETS[0];
 const TEXT_OVERLAY = 'ANACYCLE';
 
 // Title font family (used for text overlay rendering)
-let TITLE_FONT_FAMILY = 'Sharp Earth Mono';
+let TITLE_FONT_FAMILY = 'Modern Gothic Mono';
 
 // Title font weight (used for text overlay rendering)
 let TITLE_FONT_WEIGHT = 800;
+
+// Mouse interaction radius (in pixels) - controls how far from the cursor characters will animate
+const MOUSE_INTERACTION_RADIUS = 150;
 
 // Toggle state for minimal mode
 let isMinimalMode = false;
@@ -79,6 +97,10 @@ let isDensityAnimating = false;
 // Track the last used color pair index to avoid repeats
 let lastColorIndex = -1;
 
+// Store old and new color pairs for interpolation during transition
+let oldColorPair = null;
+let newColorPair = null;
+
 // Randomly select and apply a color pair from COLOR_SET (ensures different from previous)
 function setRandomColorPair() {
   let randomIndex;
@@ -95,21 +117,49 @@ function setRandomColorPair() {
   lastColorIndex = randomIndex;
   const selectedPair = COLOR_SET[randomIndex];
 
-  DUOTONE.dark = { ...selectedPair.dark };
-  DUOTONE.light = { ...selectedPair.light };
+  // Store old color pair for interpolation
+  oldColorPair = {
+    dark: { ...DUOTONE.dark },
+    light: { ...DUOTONE.light }
+  };
 
-  console.log(`Color pair changed to: ${selectedPair.name}`);
+  // Store new color pair for interpolation
+  newColorPair = {
+    dark: { ...selectedPair.dark },
+    light: { ...selectedPair.light }
+  };
+
+  console.log(`Color pair transition: → ${selectedPair.name}`);
   return selectedPair;
+}
+
+// Interpolate between old and new color pairs during transition
+function interpolateColorPairs(progress) {
+  // If no transition data, use current DUOTONE
+  if (!oldColorPair || !newColorPair) {
+    return;
+  }
+
+  // Interpolate dark color
+  DUOTONE.dark.r = Math.round(oldColorPair.dark.r + (newColorPair.dark.r - oldColorPair.dark.r) * progress);
+  DUOTONE.dark.g = Math.round(oldColorPair.dark.g + (newColorPair.dark.g - oldColorPair.dark.g) * progress);
+  DUOTONE.dark.b = Math.round(oldColorPair.dark.b + (newColorPair.dark.b - oldColorPair.dark.b) * progress);
+
+  // Interpolate light color
+  DUOTONE.light.r = Math.round(oldColorPair.light.r + (newColorPair.light.r - oldColorPair.light.r) * progress);
+  DUOTONE.light.g = Math.round(oldColorPair.light.g + (newColorPair.light.g - oldColorPair.light.g) * progress);
+  DUOTONE.light.b = Math.round(oldColorPair.light.b + (newColorPair.light.b - oldColorPair.light.b) * progress);
 }
 
 // Map brightness (0-1) to duotone colors
 function getDuotoneColor(brightness) {
-  // Return pure black for all characters so the filter blend mode can apply colors
-  // The brightness variation will be handled by character density/shape
+  // Interpolate between dark and light colors based on brightness
+  const t = brightness; // 0 = dark, 1 = light
+
   return {
-    r: 0,
-    g: 0,
-    b: 0
+    r: Math.round(DUOTONE.dark.r + (DUOTONE.light.r - DUOTONE.dark.r) * t),
+    g: Math.round(DUOTONE.dark.g + (DUOTONE.light.g - DUOTONE.dark.g) * t),
+    b: Math.round(DUOTONE.dark.b + (DUOTONE.light.b - DUOTONE.dark.b) * t)
   };
 }
 
@@ -129,10 +179,9 @@ class AsciiTextOverlay {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     // Set canvas size based on text
-    // Calculate font size as 15vmin (15% of the smaller viewport dimension)
+    // Calculate font size as 10vmin (11% of the smaller viewport dimension)
     const vmin = Math.min(window.innerWidth, window.innerHeight);
-    const fontSize = vmin * 0.15;
-    ctx.font = `${fontSize}px '${TITLE_FONT_FAMILY}', sans-serif`;
+    const fontSize = vmin * 0.11;    ctx.font = `${TITLE_FONT_WEIGHT} ${fontSize}px '${TITLE_FONT_FAMILY}', sans-serif`;
 
     // custom letter spacing (pixels)
       const LETTER_SPACING = 2;
@@ -173,7 +222,7 @@ class AsciiTextOverlay {
     ctx.clearRect(0, 0, width, height);
 
     // Set font before defining fillText override
-    ctx.font = `${fontSize}px '${TITLE_FONT_FAMILY}', sans-serif`;
+    ctx.font = `${TITLE_FONT_WEIGHT} ${fontSize}px '${TITLE_FONT_FAMILY}', sans-serif`;
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -272,6 +321,10 @@ class Ascii {
     // Store all character sets for cycling
     this.characterSets = CHARACTER_SETS;
     this.positionSets = []; // Track which character set each position uses
+
+    // Store character dimensions (will be set by MorphingAscii)
+    this.charWidth = null;
+    this.charHeight = null;
 
     // Merge default options
     this.options = Object.assign({
@@ -438,25 +491,57 @@ class Ascii {
     };
   }
 
-  // Swap to next character set for random positions (mousemove feature)
-  swapCharacterSet() {
-    // Calculate how many positions to swap (20% of total)
+  // Swap to next character set for positions within radius of mouse (mousemove feature)
+  swapCharacterSet(mouseX = null, mouseY = null, radius = 300) {
     const totalPositions = this.positionSets.length;
-    const swapCount = Math.floor(totalPositions * 0.2);
 
-    // Create array of all position indices
-    const allIndices = Array.from({ length: totalPositions }, (_, i) => i);
+    // If no mouse position provided, use old behavior (20% random)
+    if (mouseX === null || mouseY === null) {
+      const swapCount = Math.floor(totalPositions * 0.2);
+      const allIndices = Array.from({ length: totalPositions }, (_, i) => i);
+      const indicesToSwap = [];
 
-    // Randomly select 20% of positions to swap
-    const indicesToSwap = [];
-    for (let i = 0; i < swapCount; i++) {
-      const randomIndex = Math.floor(Math.random() * allIndices.length);
-      indicesToSwap.push(allIndices[randomIndex]);
-      allIndices.splice(randomIndex, 1);  // Remove to avoid duplicates
+      for (let i = 0; i < swapCount; i++) {
+        const randomIndex = Math.floor(Math.random() * allIndices.length);
+        indicesToSwap.push(allIndices[randomIndex]);
+        allIndices.splice(randomIndex, 1);
+      }
+
+      indicesToSwap.forEach(index => {
+        this.positionSets[index] = (this.positionSets[index] + 1) % this.characterSets.length;
+      });
+
+      return this.buildAsciiData();
     }
 
-    // Swap selected positions to next character set
-    indicesToSwap.forEach(index => {
+    // New behavior: only swap characters within radius of mouse
+    const indicesToSwap = [];
+
+    for (let i = 0; i < totalPositions; i++) {
+      const x = i % this.options.width;
+      const y = Math.floor(i / this.options.width);
+
+      // Calculate pixel position of this character
+      const charPixelX = x * this.charWidth;
+      const charPixelY = y * this.charHeight;
+
+      // Calculate distance from mouse
+      const dx = charPixelX - mouseX;
+      const dy = charPixelY - mouseY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // If within radius, add to swap list
+      if (distance <= radius) {
+        indicesToSwap.push(i);
+      }
+    }
+
+    // Randomly swap 30% of characters within radius
+    const swapCount = Math.floor(indicesToSwap.length * 0.3);
+    const shuffled = indicesToSwap.sort(() => Math.random() - 0.5);
+    const toSwap = shuffled.slice(0, swapCount);
+
+    toSwap.forEach(index => {
       this.positionSets[index] = (this.positionSets[index] + 1) % this.characterSets.length;
     });
 
@@ -491,6 +576,9 @@ class MorphingAscii {
     // Initial load animation state
     this.isInitialLoad = true;
 
+    // Resizing state - blocks all interactions during resize
+    this.isResizing = false;
+
     // Extract image names from src attributes
     this.imageNames = this.images.map(img => {
       const src = img.getAttribute('src');
@@ -506,6 +594,10 @@ class MorphingAscii {
   }
 
   calculateDimensions() {
+    // Force a reflow to ensure we get the latest CSS values
+    // This is critical when CSS media queries change --ascii-unit
+    this.unit.offsetHeight; // Trigger reflow
+
     // Get character dimensions from the fixed CSS font size
     const unitRect = this.unit.getBoundingClientRect();
     this.charWidth = unitRect.width;
@@ -576,6 +668,10 @@ class MorphingAscii {
         glyphRatio: glyphRatio
       });
 
+      // Pass character dimensions to ascii instance
+      ascii.charWidth = this.charWidth;
+      ascii.charHeight = this.charHeight;
+
       ascii.init();
       const asciiData = ascii.build();
       this.asciiDataCache.push(asciiData);
@@ -606,8 +702,8 @@ class MorphingAscii {
     let totalDistance = 0;
 
     document.addEventListener('mousemove', (e) => {
-      // Only allow character swapping when NOT transitioning and NOT during initial load
-      if (this.isTransitioning || this.isInitialLoad) {
+      // Block all mousemove processing during resize, transition, or initial load
+      if (this.isResizing || this.isTransitioning || this.isInitialLoad) {
         return;
       }
 
@@ -623,20 +719,20 @@ class MorphingAscii {
       lastMouseX = e.clientX;
       lastMouseY = e.clientY;
 
-      // Trigger swap when total distance exceeds 5px
+      // Trigger swap when total distance exceeds 10px
       if (totalDistance >= 10) {
         totalDistance = 0; // Reset counter
 
-        // Swap characters on the current displayed image only
+        // Swap characters on the current displayed image only, within radius of mouse
         const fromAscii = this.asciiInstances[this.currentImageIndex];
 
         if (fromAscii) {
-          const newFromData = fromAscii.swapCharacterSet();
+          const newFromData = fromAscii.swapCharacterSet(e.clientX, e.clientY, MOUSE_INTERACTION_RADIUS);
           this.asciiDataCache[this.currentImageIndex] = newFromData;
         }
 
-        // Also update title text characters on mousemove
-        cycleTextCharacters();
+        // Also update title text characters on mousemove (within radius)
+        cycleTextCharacters(e.clientX, e.clientY, MOUSE_INTERACTION_RADIUS, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight);
 
         // Re-render with updated character sets (unified grid)
         this.render(0);
@@ -645,6 +741,12 @@ class MorphingAscii {
   }
 
   handleClick() {
+    // Block clicks during resize
+    if (this.isResizing) {
+      console.log('Click ignored - resizing in progress');
+      return;
+    }
+
     // Move to next image on each click
     const nextIndex = (this.targetImageIndex + 1) % this.asciiDataCache.length;
     this.startTransition(nextIndex);
@@ -657,19 +759,8 @@ class MorphingAscii {
     this.transitionProgress = 0;
     this.transitionStartTime = performance.now();
 
-    // Change to a random color pair for this transition (images only)
+    // Select a random color pair for this transition (will interpolate during animation)
     setRandomColorPair();
-
-    // Rebuild ASCII data for both images with new colors
-    const fromAscii = this.asciiInstances[this.currentImageIndex];
-    const toAscii = this.asciiInstances[this.targetImageIndex];
-
-    if (fromAscii) {
-      this.asciiDataCache[this.currentImageIndex] = fromAscii.build();
-    }
-    if (toAscii) {
-      this.asciiDataCache[this.targetImageIndex] = toAscii.build();
-    }
 
     // Generate stable switching thresholds for each position (organic, non-flickering animation)
     const totalPositions = this.gridWidth * this.gridHeight;
@@ -679,15 +770,12 @@ class MorphingAscii {
       this.switchThresholds[i] = 0.3 + Math.pow(Math.random(), 1.5) * 0.7;
     }
 
-    // Prepare text overlay transition with new random character positions (stays black and white)
+    // Prepare text overlay transition with new random character positions
     prepareTextTransition();
-
-    // Immediately render with new colors at the start of transition (unified grid)
-    this.render(0);
 
     console.log(`Starting transition: ${this.currentImageIndex} → ${this.targetImageIndex}`);
 
-    // Start animation loop
+    // Start animation loop (color interpolation happens during render)
     this.animate();
   }
 
@@ -701,7 +789,10 @@ class MorphingAscii {
     // Ease-in-out function for smooth transition
     const eased = this.easeInOutCubic(this.transitionProgress);
 
-    // Render morphed state (unified grid with text)
+    // Interpolate color pairs during transition
+    interpolateColorPairs(eased);
+
+    // Render morphed state (unified grid with text) - colors are now interpolated
     this.render(eased);
 
     // Update image name during transition
@@ -713,6 +804,13 @@ class MorphingAscii {
     if (this.transitionProgress >= 1) {
       this.isTransitioning = false;
       this.currentImageIndex = this.targetImageIndex;
+
+      // Finalize color pair (set DUOTONE to the new color pair)
+      if (newColorPair) {
+        DUOTONE.dark = { ...newColorPair.dark };
+        DUOTONE.light = { ...newColorPair.light };
+      }
+
       console.log(`Transition complete. Current image: ${this.currentImageIndex}`);
     } else {
       // Continue animation
@@ -724,26 +822,69 @@ class MorphingAscii {
   startInitialLoadSequence() {
     console.log('Starting initial load sequence...');
 
+    // Cancel any ongoing transitions or animations
+    this.isTransitioning = false;
+
+    // Clear any existing reveal timeout
+    if (this.revealTimeout) {
+      clearTimeout(this.revealTimeout);
+      this.revealTimeout = null;
+    }
+
     // Reset to first image
     this.currentImageIndex = 0;
     this.targetImageIndex = 0;
+
+    // Check if viewport dimensions have changed (e.g., browser inspector resize)
+    const currentViewportWidth = window.innerWidth;
+    const currentViewportHeight = window.innerHeight;
+    const viewportChanged = currentViewportWidth !== this.viewportWidth || currentViewportHeight !== this.viewportHeight;
+
+    // If viewport changed, recalculate dimensions and reinitialize everything
+    if (viewportChanged) {
+      console.log(`Viewport changed from ${this.viewportWidth}x${this.viewportHeight} to ${currentViewportWidth}x${currentViewportHeight}, reinitializing...`);
+      this.isResizing = true; // Block interactions during reinit
+      this.calculateDimensions();
+      this.isInitialized = false;
+      this.asciiDataCache = [];
+      this.asciiInstances = [];
+      this.init().then(() => {
+        this.isResizing = false; // Re-enable interactions
+      });
+      return; // Exit early as init() will call startInitialLoadSequence() again
+    }
+
+    // Rebuild ASCII data for current image with current DUOTONE colors (optimization for smooth reveal)
+    const currentAscii = this.asciiInstances[this.currentImageIndex];
+    if (currentAscii) {
+      console.log('Rebuilding ASCII data with current colors...');
+      this.asciiDataCache[this.currentImageIndex] = currentAscii.build();
+    } else {
+      console.error('No ASCII instance found for current image index:', this.currentImageIndex);
+      return; // Exit if no instance found
+    }
 
     // Phase 1: Show text only for 1 second
     this.updateImageName(0);
     this.renderWithRevealMask(new Set()); // Render with no image characters visible (text only)
 
     // Phase 2: After 1 second, reveal image characters randomly over 1 second
-    setTimeout(() => {
+    this.revealTimeout = setTimeout(() => {
       console.log('Revealing image characters randomly...');
 
       const fromData = this.asciiDataCache[this.currentImageIndex];
       const totalCharacters = fromData.width * fromData.height;
 
-      // Create array of all character positions (excluding text positions)
+      // Pre-calculate text and density masks (optimization - these don't change during reveal)
       const morphedText = morphTextData(1);
       const textMask = morphedText
         ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
         : new Map();
+      const densityMask = calculateDensityMask(this.gridWidth, this.gridHeight, characterDensity);
+
+      // Store masks for reveal animation
+      this.cachedTextMask = textMask;
+      this.cachedDensityMask = densityMask;
 
       const availablePositions = [];
       for (let i = 0; i < totalCharacters; i++) {
@@ -776,7 +917,7 @@ class MorphingAscii {
           revealedSet.add(shuffledPositions[i]);
         }
 
-        // Render with current reveal mask
+        // Render with current reveal mask (uses cached masks)
         this.renderWithRevealMask(revealedSet);
 
         if (progress < 1) {
@@ -784,6 +925,11 @@ class MorphingAscii {
         } else {
           console.log('Initial load complete');
           this.isInitialLoad = false;
+          // Clear cached masks
+          this.cachedTextMask = null;
+          this.cachedDensityMask = null;
+          // Clear reveal timeout reference
+          this.revealTimeout = null;
           // Final render without mask (normal rendering)
           this.render(0);
         }
@@ -841,16 +987,21 @@ class MorphingAscii {
     const fromIndex = this.currentImageIndex;
     const fromData = this.asciiDataCache[fromIndex];
 
-    // Get text data for masking
-    const morphedText = morphTextData(1);
+    // Use cached masks if available (optimization), otherwise calculate
+    let textMask, densityMask;
 
-    // Calculate text mask positions
-    const textMask = morphedText
-      ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
-      : new Map();
-
-    // Calculate density mask (positions to hide)
-    const densityMask = calculateDensityMask(this.gridWidth, this.gridHeight, characterDensity);
+    if (this.cachedTextMask && this.cachedDensityMask) {
+      // Use pre-calculated masks (fast path during reveal animation)
+      textMask = this.cachedTextMask;
+      densityMask = this.cachedDensityMask;
+    } else {
+      // Calculate masks (fallback)
+      const morphedText = morphTextData(1);
+      textMask = morphedText
+        ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
+        : new Map();
+      densityMask = calculateDensityMask(this.gridWidth, this.gridHeight, characterDensity);
+    }
 
     // Render with reveal mask and density mask
     const morphedHTML = this.morphCharactersWithReveal(fromData, textMask, revealedPositions, densityMask);
@@ -865,6 +1016,10 @@ class MorphingAscii {
     const width = fromData.width;
     const height = fromData.height;
 
+    // Pre-calculate title color once (optimization)
+    const brightenedColor = getDuotoneColor(1);
+    const titleColorStyle = `rgb(${brightenedColor.r}, ${brightenedColor.g}, ${brightenedColor.b})`;
+
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = y * width + x;
@@ -874,15 +1029,16 @@ class MorphingAscii {
         const textCell = textMask.get(key);
 
         if (textCell) {
-          // Render text character (inherit color from parent)
-          result += textCell.char;
+          // Render text character with pre-calculated brightened color
+          result += `<span style="color: ${titleColorStyle}">${textCell.char}</span>`;
         } else if (densityMask.has(i)) {
           // This position is hidden by density mask
           result += ' ';
         } else if (revealedPositions.has(i)) {
-          // Render revealed image character
+          // Render revealed image character using cached color (no recalculation during reveal)
           const char = fromData.data[i];
-          result += char.char;
+          const colorStyle = `rgb(${char.r}, ${char.g}, ${char.b})`;
+          result += `<span style="color: ${colorStyle}">${char.char}</span>`;
         } else {
           // Not yet revealed - render as space
           result += ' ';
@@ -910,8 +1066,10 @@ class MorphingAscii {
         const textCell = textMask.get(key);
 
         if (textCell) {
-          // Render text character (inherit color from parent)
-          result += textCell.char;
+          // Render text character with brightened color
+          const brightenedColor = getDuotoneColor(1); // Use full brightness for title
+          const colorStyle = `rgb(${brightenedColor.r}, ${brightenedColor.g}, ${brightenedColor.b})`;
+          result += `<span style="color: ${colorStyle}">${textCell.char}</span>`;
         } else if (densityMask.has(i)) {
           // This position is hidden by density mask
           result += ' ';
@@ -928,8 +1086,9 @@ class MorphingAscii {
             i
           );
 
-          // Generate character (inherit color from parent)
-          result += morphed.char;
+          // Generate character with color
+          const colorStyle = `rgb(${morphed.r}, ${morphed.g}, ${morphed.b})`;
+          result += `<span style="color: ${colorStyle}">${morphed.char}</span>`;
         }
       }
 
@@ -987,15 +1146,22 @@ class MorphingAscii {
   }
 
   handleResize() {
+    // Immediately block all interactions
+    this.isResizing = true;
+
     // Debounce resize for performance
     clearTimeout(this.resizeTimeout);
     this.resizeTimeout = setTimeout(() => {
+      console.log('Resize event triggered, reinitializing...');
       this.calculateDimensions();
       this.isInitialized = false;
       this.asciiDataCache = [];
       this.asciiInstances = [];
-      this.init();
-    }, 300);
+      this.init().then(() => {
+        // Re-enable interactions after initialization complete
+        this.isResizing = false;
+      });
+    }, 100);
   }
 }
 
@@ -1047,16 +1213,23 @@ function prepareTextTransition() {
   console.log(`Text transition prepared with character set ${newIndex}`);
 }
 
-// Cycle text characters on mousemove (randomly swap some character positions)
-function cycleTextCharacters() {
+// Cycle text characters on mousemove (randomly swap some character positions within radius)
+function cycleTextCharacters(mouseX = null, mouseY = null, radius = 150, gridWidth, gridHeight, charWidth, charHeight) {
   if (!currentTextData) return;
 
   // Randomly select a character set from TITLE_CHARACTER_SETS
   const randomSetIndex = Math.floor(Math.random() * TITLE_CHARACTER_SETS.length);
   const selectedCharSet = TITLE_CHARACTER_SETS[randomSetIndex];
 
+  // Calculate text dimensions and position
+  const textWidthChars = currentTextData[0].length;
+  const textHeightChars = currentTextData.length;
+  const viewportCenterX = Math.floor(gridWidth / 2);
+  const viewportCenterY = Math.floor(gridHeight / 2);
+  const textStartX = viewportCenterX - Math.floor(textWidthChars / 2);
+  const textStartY = viewportCenterY - Math.floor(textHeightChars / 2);
+
   // Recreate currentTextData with new random character assignments
-  // This simulates the character cycling effect
   const height = currentTextData.length;
 
   for (let y = 0; y < height; y++) {
@@ -1068,14 +1241,34 @@ function cycleTextCharacters() {
 
       // Only update cells that have text
       if (cell && cell.isText) {
-        // 20% chance to swap this character (matching image character swap rate)
-        if (Math.random() < 0.2) {
-          // Pick a random character from the selected set, biased towards denser characters
-          const biasedRandom = Math.pow(Math.random(), 0.25);
-          const charIndex = Math.floor(biasedRandom * selectedCharSet.length);
-          // Ensure we don't exceed array bounds
-          const safeIndex = Math.min(charIndex, selectedCharSet.length - 1);
-          cell.char = selectedCharSet[safeIndex];
+        // If mouse position provided, check if within radius
+        let withinRadius = true;
+        if (mouseX !== null && mouseY !== null) {
+          // Calculate pixel position of this text character in the grid
+          const gridX = textStartX + x;
+          const gridY = textStartY + y;
+          const charPixelX = gridX * charWidth;
+          const charPixelY = gridY * charHeight;
+
+          // Calculate distance from mouse
+          const dx = charPixelX - mouseX;
+          const dy = charPixelY - mouseY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          withinRadius = distance <= radius;
+        }
+
+        // Only swap if within radius (or no radius check)
+        if (withinRadius) {
+          // 30% chance to swap this character
+          if (Math.random() < 0.3) {
+            // Pick a random character from the selected set, biased towards denser characters
+            const biasedRandom = Math.pow(Math.random(), 0.25);
+            const charIndex = Math.floor(biasedRandom * selectedCharSet.length);
+            // Ensure we don't exceed array bounds
+            const safeIndex = Math.min(charIndex, selectedCharSet.length - 1);
+            cell.char = selectedCharSet[safeIndex];
+          }
         }
       }
     }
@@ -1441,6 +1634,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set initial random color pair
   setRandomColorPair();
 
+  // Initialize DUOTONE with the first color pair (no transition on first load)
+  if (newColorPair) {
+    DUOTONE.dark = { ...newColorPair.dark };
+    DUOTONE.light = { ...newColorPair.light };
+  }
+
   // Populate the hidden images from _thumbnails
   populateHiddenImages();
 
@@ -1478,10 +1677,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Add 'r' key listener to re-initiate loading animation
-    if (event.key === 'r' && event.target === document.body) {
+    if (event.key === 'r' || event.key === 'R') {
+      console.log('R key pressed, target:', event.target, 'morphingInstance:', window.morphingInstance);
       if (window.morphingInstance) {
         window.morphingInstance.isInitialLoad = true;
         window.morphingInstance.startInitialLoadSequence();
+      } else {
+        console.error('No morphingInstance found!');
       }
     }
 
@@ -1551,69 +1753,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateWeightOptions(TITLE_FONT_FAMILY);
   }
 
-  // Background color change handler
+  // Background color change handler (simplified for duotone approach)
   if (backgroundColorSelect) {
     backgroundColorSelect.addEventListener('change', (event) => {
       event.stopPropagation();
       const color = event.target.value;
-      const filter = document.querySelector('.filter');
-      const asciiArt = document.querySelector('.ascii-art');
 
-      if (color === 'inverted') {
-        // Inverted: black background, white characters, filter lightens to color
-        document.body.style.backgroundColor = '#000';
-        if (filter) {
-          filter.style.opacity = '1';
-          filter.style.mixBlendMode = 'lighten';
-          filter.style.animation = 'colorCycle 66s linear infinite';
-          filter.style.zIndex = '100';
-        }
-        if (asciiArt) {
-          asciiArt.style.color = '#fff';
-          asciiArt.style.mixBlendMode = 'normal';
-          asciiArt.style.animation = 'none';
-        }
-      } else if (color === 'black-inverted') {
-        // Black-inverted: filter color background, black characters
+      // Simple background color switch - duotone colors on characters handle the rest
+      if (color === 'white') {
         document.body.style.backgroundColor = '#fff';
-        if (filter) {
-          filter.style.opacity = '1';
-          filter.style.mixBlendMode = 'normal';
-          filter.style.animation = 'colorCycle 66s linear infinite';
-          filter.style.zIndex = '5';
-        }
-        if (asciiArt) {
-          asciiArt.style.color = '#000';
-          asciiArt.style.mixBlendMode = 'normal';
-          asciiArt.style.animation = 'none';
-        }
-      } else if (color === 'black') {
-        // Black: black background, colored characters
-        document.body.style.backgroundColor = '#000';
-        if (filter) {
-          filter.style.opacity = '0';
-          filter.style.mixBlendMode = 'normal';
-          filter.style.animation = 'none';
-        }
-        if (asciiArt) {
-          asciiArt.style.color = '';
-          asciiArt.style.mixBlendMode = 'normal';
-          asciiArt.style.animation = 'textColorCycle 66s linear infinite';
-        }
       } else {
-        // White background: normal mode
-        document.body.style.backgroundColor = '#fff';
-        if (filter) {
-          filter.style.opacity = '1';
-          filter.style.mixBlendMode = 'lighten';
-          filter.style.animation = 'colorCycle 66s linear infinite';
-          filter.style.zIndex = '100';
-        }
-        if (asciiArt) {
-          asciiArt.style.color = '#000';
-          asciiArt.style.mixBlendMode = 'normal';
-          asciiArt.style.animation = 'none';
-        }
+        // Default to black for all other modes
+        document.body.style.backgroundColor = '#000';
       }
 
       console.log(`Background color changed to: ${color}`);

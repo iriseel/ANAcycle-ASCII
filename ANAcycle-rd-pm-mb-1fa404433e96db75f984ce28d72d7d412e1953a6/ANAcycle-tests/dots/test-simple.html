@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Test</title>
+  <style>
+    body {
+      background: white;
+      margin: 0;
+      padding: 50px;
+    }
+
+    :root {
+      --space-sm: 1rem;
+    }
+
+    dissolve-element {
+      display: block;
+      font-size: 10vmin;
+      margin: 50px 0;
+    }
+
+    dissolve-element canvas {
+      width: 100%;
+      height: auto;
+      image-rendering: crisp-edges;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>Simple Dissolve Test</h1>
+
+  <dissolve-element
+    type="text"
+    text="TEST"
+    start="0.1"
+    limit="0.9"
+    track="documentPosition">
+    <div name="line-ruler" style="position: absolute; height: 1em;"></div>
+    <div name="padding-ruler" style="position: absolute; height: var(--space-sm);"></div>
+  </dissolve-element>
+
+  <div style="height: 300vh; background: linear-gradient(to bottom, #eee, #fff);"></div>
+
+  <script src="dissolve-element.js"></script>
+</body>
+</html>

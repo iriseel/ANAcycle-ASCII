@@ -1,0 +1,140 @@
+:root {
+    --ascii-unit: 10px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #000;
+    color: #fff;
+    overflow-x: hidden;
+    /* Enable scroll snap for section-based scrolling */
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    /* Height is set dynamically via JS based on number of images */
+    height: 100vh;
+    overflow-y: scroll;
+}
+
+/* Scroll snap container */
+.scroll-container {
+    height: 100%;
+}
+
+/* Scroll snap sections - one per image */
+.snap-section {
+    height: 100vh;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+}
+
+/* Fixed container for ASCII art */
+.ascii-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 10;
+    overflow: hidden;
+    /* Performance optimizations */
+    will-change: contents;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+/* ASCII art display */
+.ascii-art {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--ascii-unit);
+    line-height: 1.0;
+    white-space: pre;
+    color: #fff;
+    text-align: center;
+    /* GPU acceleration */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
+}
+
+/* Colored character spans */
+.ascii-art span {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    white-space: inherit;
+}
+
+/* Hidden images for processing */
+.hidden-images {
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.source-img {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+/* Hidden measurement unit */
+.ascii-unit {
+    position: absolute;
+    visibility: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--ascii-unit);
+    line-height: 1;
+    white-space: pre;
+}
+
+/* Image name display */
+.image-name-display {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 20;
+    pointer-events: none;
+    backdrop-filter: blur(5px);
+    transition: opacity 0.3s ease;
+
+    display:none;
+}
+
+/* Responsive font sizing */
+@media (max-width: 1200px) {
+    :root {
+        --ascii-unit: 8px;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --ascii-unit: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    :root {
+        --ascii-unit: 5px;
+    }
+}

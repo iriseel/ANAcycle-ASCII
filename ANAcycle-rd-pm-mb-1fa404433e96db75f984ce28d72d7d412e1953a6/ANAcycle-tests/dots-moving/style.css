@@ -1,0 +1,94 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background-color: #000;
+  color: #fff;
+  overflow-x: hidden;
+  background: white;
+}
+
+/* CSS Variables */
+:root {
+  --space-sm: 1rem;
+}
+
+.ana-container, .cycle-container, canvas {
+  /* opacity: .7; */
+}
+
+/* Dynamic positioning for ANA and cycle */
+.ana-container, .cycle-container {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Initial positions */
+.ana-container {
+  top: 0;
+  left: 0;
+  width: auto;
+}
+
+.cycle-container {
+  bottom: 0;
+  left: 0;
+  width: auto;
+}
+
+/* Dissolve Element Styling */
+dissolve-element {
+  display: block;
+  font-size: 80px;
+  width: max-content; /* Size to content, prevent container influence */
+  min-width: fit-content; /* Ensure text isn't compressed */
+  line-height: 1; /* Eliminate extra vertical space from line-height */
+}
+
+dissolve-element canvas {
+  width: 100%;
+  height: auto;
+  image-rendering: crisp-edges;
+  display: block;
+  line-height: 1; /* Ensure no extra vertical spacing */
+}
+
+/* Content area with placeholder grid */
+.content {
+  position: relative;
+  min-height: 400vh;
+  padding: 30vh 5vw;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+
+  opacity:0;
+}
+
+.placeholder-item {
+  aspect-ratio: 1;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  transition: background 0.3s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  dissolve-element {
+    font-size: 12vmin;
+  }
+
+  .content {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    padding: 25vh 4vw;
+  }
+}
