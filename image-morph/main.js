@@ -14,6 +14,12 @@ const THUMBNAIL_IMAGES = [
 // Transition duration in milliseconds
 const TRANSITION_DURATION = 1500;
 
+// Animation timing constants
+const DENSITY_FADE_TARGET = 15; // Target density percentage for fade animation
+const DENSITY_FADE_DURATION = 1500; // Density fade animation duration in ms
+const REVEAL_PAUSE_DURATION = 1000; // Pause before revealing image on initial load (ms)
+const REVEAL_ANIMATION_DURATION = 1000; // Image reveal animation duration in ms
+
 // Color pair sets for duotone effects
 const COLOR_SET = [
   {
@@ -58,27 +64,17 @@ const TITLE_CHARACTER_SETS = [
   ['◓','◉', '●']
 ];
 
-
-// Current character set (defaults to first set)
-const CHARACTER_SET = CHARACTER_SETS[0];
-
-// Title character set (defaults to first set of TITLE_CHARACTER_SETS)
-const TITLE_CHARACTER_SET = TITLE_CHARACTER_SETS[0];
-
 // Text overlay configuration
 const TEXT_OVERLAY = 'ANAcycle';
 
 // Title font family (used for text overlay rendering)
-let TITLE_FONT_FAMILY = 'Modern Gothic';
+const TITLE_FONT_FAMILY = 'Modern Gothic';
 
 // Title font weight (used for text overlay rendering)
-let TITLE_FONT_WEIGHT = 800;
+const TITLE_FONT_WEIGHT = 800;
 
 // Mouse interaction radius (in pixels) - controls how far from the cursor characters will animate
 const MOUSE_INTERACTION_RADIUS = 150;
-
-// Toggle state for minimal mode
-let isMinimalMode = false;
 
 // Title visibility state
 let isTitleVisible = true;
@@ -88,10 +84,6 @@ let isImageVisible = true;
 
 // Density control state (0-100, where 100 = full density)
 let characterDensity = 100;
-
-// Density animation state
-let densityAnimationFrame = null;
-let isDensityAnimating = false;
 
 // ============================================
 // DUOTONE COLOR MAPPING
@@ -154,16 +146,19 @@ function interpolateColorPairs(progress) {
   DUOTONE.light.b = Math.round(oldColorPair.light.b + (newColorPair.light.b - oldColorPair.light.b) * progress);
 }
 
-// Map brightness (0-1) to duotone colors
+// Reusable color object to reduce GC pressure
+const reusableColor = { r: 0, g: 0, b: 0 };
+
+// Map brightness (0-1) to duotone colors (returns reusable object)
 function getDuotoneColor(brightness) {
   // Interpolate between dark and light colors based on brightness
   const t = brightness; // 0 = dark, 1 = light
 
-  return {
-    r: Math.round(DUOTONE.dark.r + (DUOTONE.light.r - DUOTONE.dark.r) * t),
-    g: Math.round(DUOTONE.dark.g + (DUOTONE.light.g - DUOTONE.dark.g) * t),
-    b: Math.round(DUOTONE.dark.b + (DUOTONE.light.b - DUOTONE.dark.b) * t)
-  };
+  reusableColor.r = Math.round(DUOTONE.dark.r + (DUOTONE.light.r - DUOTONE.dark.r) * t);
+  reusableColor.g = Math.round(DUOTONE.dark.g + (DUOTONE.light.g - DUOTONE.dark.g) * t);
+  reusableColor.b = Math.round(DUOTONE.dark.b + (DUOTONE.light.b - DUOTONE.dark.b) * t);
+
+  return reusableColor;
 }
 
 // ============================================
@@ -560,7 +555,6 @@ class Ascii {
 class MorphingAscii {
   constructor() {
     this.asciiArt = document.getElementById('asciiArt');
-    this.imageNameDisplay = document.getElementById('imageName');
     this.images = Array.from(document.querySelectorAll('.source-img'));
     this.unit = document.querySelector('.ascii-unit');
 
@@ -585,11 +579,10 @@ class MorphingAscii {
     // Density fade animation state
     this.isDensityAnimating = false;
 
-    // Extract image names from src attributes
-    this.imageNames = this.images.map(img => {
-      const src = img.getAttribute('src');
-      return src.split('/').pop(); // Get filename only
-    });
+    // Performance caches
+    this.textMaskCache = null;
+    this.densityMaskCache = null;
+    this.lastCachedDensity = -1;
 
     // Calculate dimensions
     this.calculateDimensions();
@@ -792,28 +785,20 @@ class MorphingAscii {
 
     this.isDensityAnimating = true;
     const startDensity = 100;
-    const targetDensity = 15;
-    const duration = 1500; // 1.5 seconds
     const startTime = performance.now();
 
     const densityAnimation = () => {
       if (!this.isDensityAnimating) return; // Stop if interrupted
 
       const elapsed = performance.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+      const progress = Math.min(elapsed / DENSITY_FADE_DURATION, 1);
 
       // Ease-out cubic for smooth deceleration
       const eased = 1 - Math.pow(1 - progress, 3);
 
       // Calculate current density
-      const currentDensity = startDensity - (startDensity - targetDensity) * eased;
+      const currentDensity = startDensity - (startDensity - DENSITY_FADE_TARGET) * eased;
       characterDensity = Math.round(currentDensity);
-
-      // Update UI slider
-      const densitySlider = document.getElementById('densitySlider');
-      const densityValue = document.getElementById('densityValue');
-      if (densitySlider) densitySlider.value = characterDensity;
-      if (densityValue) densityValue.textContent = characterDensity;
 
       // Render with current density
       this.render(0);
@@ -842,10 +827,6 @@ class MorphingAscii {
 
     // Reset density to 100% when starting a new transition
     characterDensity = 100;
-    const densitySlider = document.getElementById('densitySlider');
-    const densityValue = document.getElementById('densityValue');
-    if (densitySlider) densitySlider.value = 100;
-    if (densityValue) densityValue.textContent = '100';
 
     // Select a random color pair for this transition (will interpolate during animation)
     setRandomColorPair();
@@ -882,11 +863,6 @@ class MorphingAscii {
 
     // Render morphed state (unified grid with text) - colors are now interpolated
     this.render(eased);
-
-    // Update image name during transition
-    if (this.transitionProgress >= 0.5) {
-      this.updateImageName(this.targetImageIndex);
-    }
 
     // Check if transition is complete
     if (this.transitionProgress >= 1) {
@@ -952,11 +928,10 @@ class MorphingAscii {
       return; // Exit if no instance found
     }
 
-    // Phase 1: Show text only for 1 second
-    this.updateImageName(0);
+    // Phase 1: Show text only
     this.renderWithRevealMask(new Set()); // Render with no image characters visible (text only)
 
-    // Phase 2: After 1 second, reveal image characters randomly over 1 second
+    // Phase 2: After pause, reveal image characters randomly
     this.revealTimeout = setTimeout(() => {
       console.log('Revealing image characters randomly...');
 
@@ -990,12 +965,11 @@ class MorphingAscii {
       const shuffledPositions = this.shuffleArray([...availablePositions]);
 
       const revealStartTime = performance.now();
-      const revealDuration = 1000; // 1 second
       const revealedSet = new Set();
 
       const revealAnimation = () => {
         const elapsed = performance.now() - revealStartTime;
-        const progress = Math.min(elapsed / revealDuration, 1);
+        const progress = Math.min(elapsed / REVEAL_ANIMATION_DURATION, 1);
 
         // Calculate how many characters should be revealed at this point
         const targetCount = Math.floor(progress * shuffledPositions.length);
@@ -1024,7 +998,7 @@ class MorphingAscii {
       };
 
       revealAnimation();
-    }, 1000); // 1 second pause
+    }, REVEAL_PAUSE_DURATION);
   }
 
   // Helper function to shuffle array
@@ -1055,13 +1029,34 @@ class MorphingAscii {
       ? morphTextData(progress)
       : currentTextData;
 
-    // Calculate text mask positions
-    const textMask = morphedText
-      ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
-      : new Map();
+    // Calculate or use cached text mask
+    let textMask;
+    if (!this.isTransitioning && this.textMaskCache && morphedText === currentTextData) {
+      // Use cached text mask when not transitioning
+      textMask = this.textMaskCache;
+    } else {
+      // Recalculate during transitions or when text changes
+      textMask = morphedText
+        ? calculateTextMask(morphedText, this.gridWidth, this.gridHeight, this.charWidth, this.charHeight)
+        : new Map();
 
-    // Calculate density mask (positions to hide)
-    const densityMask = calculateDensityMask(this.gridWidth, this.gridHeight, characterDensity);
+      // Cache for next frame if not transitioning
+      if (!this.isTransitioning) {
+        this.textMaskCache = textMask;
+      }
+    }
+
+    // Calculate or use cached density mask
+    let densityMask;
+    if (characterDensity === this.lastCachedDensity && this.densityMaskCache) {
+      // Use cached density mask if density hasn't changed
+      densityMask = this.densityMaskCache;
+    } else {
+      // Recalculate when density changes
+      densityMask = calculateDensityMask(this.gridWidth, this.gridHeight, characterDensity);
+      this.densityMaskCache = densityMask;
+      this.lastCachedDensity = characterDensity;
+    }
 
     // Morph between the two images with text masking and density masking
     const morphedHTML = this.morphCharactersUnified(fromData, toData, progress, textMask, densityMask);
@@ -1231,17 +1226,15 @@ class MorphingAscii {
     };
   }
 
-  updateImageName(imageIndex) {
-    // Only update if the image has changed
-    if (imageIndex !== this.currentImageIndex) {
-      this.currentImageIndex = imageIndex;
-      this.imageNameDisplay.textContent = this.imageNames[imageIndex];
-    }
-  }
 
   handleResize() {
     // Immediately block all interactions
     this.isResizing = true;
+
+    // Invalidate caches
+    this.textMaskCache = null;
+    this.densityMaskCache = null;
+    this.lastCachedDensity = -1;
 
     // Debounce resize for performance
     clearTimeout(this.resizeTimeout);
@@ -1269,7 +1262,7 @@ let targetTextData = null;
 
 // Generate new text data
 function generateTextData() {
-  const asciiText = new AsciiTextOverlay(TEXT_OVERLAY, TITLE_CHARACTER_SET);
+  const asciiText = new AsciiTextOverlay(TEXT_OVERLAY, TITLE_CHARACTER_SETS[0]);
   return asciiText.convert();
 }
 
@@ -1285,6 +1278,11 @@ function prepareTextTransition() {
     );
   } else {
     currentTextData = generateTextData();
+  }
+
+  // Invalidate text mask cache since text changed
+  if (window.morphingInstance) {
+    window.morphingInstance.textMaskCache = null;
   }
 
   // Randomly select a different character set from TITLE_CHARACTER_SETS
@@ -1515,212 +1513,6 @@ function morphTextData(progress) {
 }
 
 // ============================================
-// SCREEN RECORDING
-// ============================================
-
-let mediaRecorder = null;
-let recordedChunks = [];
-let isRecording = false;
-let displayStream = null;
-
-async function startRecording() {
-  try {
-    // Capture the current tab/window
-    // Note: Don't specify mediaSource to allow user to choose tab, window, or screen
-    displayStream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        frameRate: 60,
-        displaySurface: 'browser' // Prefer browser tab
-      },
-      audio: false,
-      preferCurrentTab: true // Chrome-specific hint to show current tab
-    });
-
-    // Set up MediaRecorder
-    const options = {
-      mimeType: 'video/webm;codecs=vp9',
-      videoBitsPerSecond: 8000000 // 8 Mbps for good quality
-    };
-
-    // Fallback to vp8 if vp9 not supported
-    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options.mimeType = 'video/webm;codecs=vp8';
-    }
-
-    mediaRecorder = new MediaRecorder(displayStream, options);
-    recordedChunks = [];
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        recordedChunks.push(event.data);
-      }
-    };
-
-    mediaRecorder.onstop = () => {
-      // Create blob and download
-      const blob = new Blob(recordedChunks, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-
-      // Create download link
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = `anacycle-recording-${Date.now()}.webm`;
-      document.body.appendChild(a);
-      a.click();
-
-      // Cleanup
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 100);
-
-      // Stop all tracks
-      displayStream.getTracks().forEach(track => track.stop());
-      displayStream = null;
-
-      console.log('Recording saved and stream stopped');
-    };
-
-    // Start recording
-    mediaRecorder.start();
-    isRecording = true;
-
-    console.log('Recording started - press SPACE again to stop');
-
-  } catch (err) {
-    console.error('Error starting recording:', err);
-    isRecording = false;
-  }
-}
-
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-    isRecording = false;
-    console.log('Recording stopped - saving file...');
-  }
-}
-
-function toggleRecording() {
-  if (isRecording) {
-    stopRecording();
-  } else {
-    startRecording();
-  }
-}
-
-// ============================================
-// MINIMAL MODE TOGGLE
-// ============================================
-
-function toggleMinimalMode() {
-  isMinimalMode = !isMinimalMode;
-  document.body.classList.toggle('minimal-mode', isMinimalMode);
-
-  // Re-render current state with new mode (unified grid)
-  if (window.morphingInstance) {
-    window.morphingInstance.render(0);
-  }
-
-  console.log(`Minimal mode: ${isMinimalMode ? 'ON' : 'OFF'}`);
-}
-
-// ============================================
-// FONT CONTROLS
-// ============================================
-
-// Change font settings for both title and ASCII characters
-async function changeFontSettings(fontFamily, fontWeight) {
-  // Update JavaScript variables
-  TITLE_FONT_FAMILY = fontFamily;
-  TITLE_FONT_WEIGHT = parseInt(fontWeight);
-
-  // Update CSS body font
-  document.body.style.fontFamily = `'${fontFamily}', Courier, monospace`;
-  document.body.style.fontWeight = fontWeight;
-
-  // Wait for font to load
-  try {
-    await document.fonts.load(`${TITLE_FONT_WEIGHT} 90px "${TITLE_FONT_FAMILY}"`);
-    console.log(`${TITLE_FONT_FAMILY} (${TITLE_FONT_WEIGHT}) loaded`);
-  } catch (err) {
-    console.warn('Font loading failed:', err);
-  }
-
-  // Regenerate text data with new font
-  currentTextData = generateTextData();
-  targetTextData = generateTextData();
-
-  // Re-render with new font
-  if (window.morphingInstance) {
-    window.morphingInstance.render(0);
-  }
-
-  console.log(`Font changed to: ${fontFamily} ${fontWeight}`);
-}
-
-// Toggle UI visibility
-function toggleUIVisibility() {
-  const ui = document.getElementById('ui');
-  if (ui) {
-    ui.classList.toggle('hidden');
-  }
-}
-
-// Animate density from 100% to 15% over 2 seconds
-function animateDensity() {
-  // Cancel any existing animation
-  if (densityAnimationFrame) {
-    cancelAnimationFrame(densityAnimationFrame);
-  }
-
-  isDensityAnimating = true;
-  const startDensity = 100;
-  const endDensity = 15;
-  const duration = 2000; // 2 seconds
-  const startTime = performance.now();
-
-  const densitySlider = document.getElementById('densitySlider');
-  const densityValue = document.getElementById('densityValue');
-
-  function animate(currentTime) {
-    const elapsed = currentTime - startTime;
-    const progress = Math.min(elapsed / duration, 1); // 0 to 1
-
-    // Use easeInOutCubic for smooth animation
-    const eased = progress < 0.5
-      ? 4 * progress * progress * progress
-      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-
-    // Calculate current density
-    const currentDensity = Math.round(startDensity - (startDensity - endDensity) * eased);
-
-    // Update global state
-    characterDensity = currentDensity;
-
-    // Update UI
-    if (densitySlider) densitySlider.value = currentDensity;
-    if (densityValue) densityValue.textContent = currentDensity;
-
-    // Force re-render
-    if (window.morphingInstance && !window.morphingInstance.isTransitioning) {
-      window.morphingInstance.render();
-    }
-
-    // Continue animation if not finished
-    if (progress < 1) {
-      densityAnimationFrame = requestAnimationFrame(animate);
-    } else {
-      isDensityAnimating = false;
-      densityAnimationFrame = null;
-    }
-  }
-
-  densityAnimationFrame = requestAnimationFrame(animate);
-}
-
-// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -1737,11 +1529,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Populate the hidden images from _thumbnails
   populateHiddenImages();
 
-  // Set initial image name
-  const imageNameDisplay = document.getElementById('imageName');
-  if (THUMBNAIL_IMAGES.length > 0) {
-    imageNameDisplay.textContent = THUMBNAIL_IMAGES[0];
-  }
 
   // Wait for custom font to load
   try {
@@ -1763,14 +1550,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     morphing.init();
   });
 
-  // Add spacebar listener to toggle UI visibility
+  // Add 'r' key listener to re-initiate loading animation
   document.addEventListener('keydown', (event) => {
-    if (event.code === 'Space' && event.target === document.body) {
-      event.preventDefault(); // Prevent page scroll
-      toggleUIVisibility();
-    }
-
-    // Add 'r' key listener to re-initiate loading animation
     if (event.key === 'r' || event.key === 'R') {
       console.log('R key pressed, target:', event.target, 'morphingInstance:', window.morphingInstance);
       if (window.morphingInstance) {
@@ -1780,143 +1561,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('No morphingInstance found!');
       }
     }
-
-    // Add 'd' key listener to animate density from 100% to 15% over 2 seconds
-    if (event.key === 'd' && event.target === document.body) {
-      animateDensity();
-    }
   });
 
-  // Add font control listeners
-  const fontFamilySelect = document.getElementById('fontFamily');
-  const fontWeightSelect = document.getElementById('fontWeight');
-  const backgroundColorSelect = document.getElementById('backgroundColor');
-
-  if (fontFamilySelect && fontWeightSelect) {
-    // Set initial values
-    fontFamilySelect.value = TITLE_FONT_FAMILY;
-    fontWeightSelect.value = TITLE_FONT_WEIGHT.toString();
-
-    // Update available weights based on font family
-    function updateWeightOptions(fontFamily) {
-      const sharpEarthWeights = ['200', '300', '400', '500', '700', '800'];
-      const modernGothicWeights = ['200', '300', '500'];
-
-      const weights = fontFamily === 'Modern Gothic Mono' ? modernGothicWeights : sharpEarthWeights;
-      const currentWeight = fontWeightSelect.value;
-
-      // Clear and rebuild options
-      fontWeightSelect.innerHTML = '';
-      weights.forEach(weight => {
-        const option = document.createElement('option');
-        option.value = weight;
-        const labels = {
-          '200': '200 - Thin',
-          '300': '300 - Light',
-          '400': '400 - Regular',
-          '500': '500 - Medium',
-          '700': '700 - Bold',
-          '800': '800 - Extra Bold'
-        };
-        option.textContent = labels[weight];
-        fontWeightSelect.appendChild(option);
-      });
-
-      // Restore previous weight if available, otherwise select first option
-      if (weights.includes(currentWeight)) {
-        fontWeightSelect.value = currentWeight;
-      } else {
-        fontWeightSelect.value = weights[0];
-      }
-    }
-
-    // Font family change handler
-    fontFamilySelect.addEventListener('change', (event) => {
-      event.stopPropagation();
-      updateWeightOptions(event.target.value);
-      changeFontSettings(fontFamilySelect.value, fontWeightSelect.value);
-    });
-
-    // Font weight change handler
-    fontWeightSelect.addEventListener('change', (event) => {
-      event.stopPropagation();
-      changeFontSettings(fontFamilySelect.value, fontWeightSelect.value);
-    });
-
-    // Initialize weight options
-    updateWeightOptions(TITLE_FONT_FAMILY);
-  }
-
-  // Background color change handler (simplified for duotone approach)
-  if (backgroundColorSelect) {
-    backgroundColorSelect.addEventListener('change', (event) => {
-      event.stopPropagation();
-      const color = event.target.value;
-
-      // Simple background color switch - duotone colors on characters handle the rest
-      if (color === 'white') {
-        document.body.style.backgroundColor = '#fff';
-      } else {
-        // Default to black for all other modes
-        document.body.style.backgroundColor = '#000';
-      }
-
-      console.log(`Background color changed to: ${color}`);
-
-      // Re-initiate loading animation
-      if (window.morphingInstance) {
-        window.morphingInstance.isInitialLoad = true;
-        window.morphingInstance.startInitialLoadSequence();
-      }
-    });
-  }
-
-  // Title toggle handler
-  const titleToggle = document.getElementById('titleToggle');
-  if (titleToggle) {
-    titleToggle.addEventListener('change', (event) => {
-      event.stopPropagation();
-      isTitleVisible = event.target.checked;
-
-      console.log(`Title visibility changed to: ${isTitleVisible}`);
-
-      // Re-initiate loading animation
-      if (window.morphingInstance) {
-        window.morphingInstance.isInitialLoad = true;
-        window.morphingInstance.startInitialLoadSequence();
-      }
-    });
-  }
-
-  // Image toggle handler
-  const imageToggle = document.getElementById('imageToggle');
-  if (imageToggle) {
-    imageToggle.addEventListener('change', (event) => {
-      event.stopPropagation();
-      isImageVisible = event.target.checked;
-
-      console.log(`Image visibility changed to: ${isImageVisible}`);
-
-      // Re-render immediately (no need to re-initiate loading animation)
-      if (window.morphingInstance && !window.morphingInstance.isTransitioning) {
-        window.morphingInstance.render(0);
-      }
-    });
-  }
-
-  // Density slider handler
-  const densitySlider = document.getElementById('densitySlider');
-  const densityValue = document.getElementById('densityValue');
-  if (densitySlider && densityValue) {
-    densitySlider.addEventListener('input', (event) => {
-      const newDensity = parseInt(event.target.value, 10);
-      characterDensity = newDensity;
-      densityValue.textContent = newDensity;
-
-      // Force re-render by triggering a render
-      if (window.morphingInstance && !window.morphingInstance.isTransitioning) {
-        window.morphingInstance.render();
-      }
-    });
-  }
 });
