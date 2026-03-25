@@ -66,10 +66,10 @@ const CHARACTER_SET = CHARACTER_SETS[0];
 const TITLE_CHARACTER_SET = TITLE_CHARACTER_SETS[0];
 
 // Text overlay configuration
-const TEXT_OVERLAY = 'ANACYCLE';
+const TEXT_OVERLAY = 'ANAcycle';
 
 // Title font family (used for text overlay rendering)
-let TITLE_FONT_FAMILY = 'Modern Gothic Mono';
+let TITLE_FONT_FAMILY = 'Modern Gothic';
 
 // Title font weight (used for text overlay rendering)
 let TITLE_FONT_WEIGHT = 800;
@@ -82,6 +82,9 @@ let isMinimalMode = false;
 
 // Title visibility state
 let isTitleVisible = true;
+
+// Image visibility state
+let isImageVisible = true;
 
 // Density control state (0-100, where 100 = full density)
 let characterDensity = 100;
@@ -256,7 +259,7 @@ class AsciiTextOverlay {
 
     // Sample every few pixels for reasonable resolution
     // Use different sample rates for X and Y to adjust horizontal spacing
-    const sampleRateX = 6;  // Lower value = wider spacing (more horizontal stretch)
+    const sampleRateX = 5;  // Lower value = wider spacing (more horizontal stretch)
     const sampleRateY = 8;  // Vertical spacing
 
     for (let y = 0; y < height; y += sampleRateY) {
@@ -579,6 +582,9 @@ class MorphingAscii {
     // Resizing state - blocks all interactions during resize
     this.isResizing = false;
 
+    // Density fade animation state
+    this.isDensityAnimating = false;
+
     // Extract image names from src attributes
     this.imageNames = this.images.map(img => {
       const src = img.getAttribute('src');
@@ -687,6 +693,9 @@ class MorphingAscii {
     asciiContainer.addEventListener('click', this.handleClick);
     window.addEventListener('resize', () => this.handleResize());
 
+    // Add scroll listener for density fade animation
+    this.setupScroll();
+
     // Add mousemove listener for character cycling
     this.setupMousemove();
 
@@ -740,6 +749,32 @@ class MorphingAscii {
     });
   }
 
+  setupScroll() {
+    let lastScrollTime = 0;
+    const scrollCooldown = 1000; // 1 second cooldown between scroll triggers
+
+    window.addEventListener('wheel', (e) => {
+      // Block during resize, transition, or initial load
+      if (this.isResizing || this.isTransitioning || this.isInitialLoad || this.isDensityAnimating) {
+        return;
+      }
+
+      // Cooldown to prevent multiple triggers
+      const now = Date.now();
+      if (now - lastScrollTime < scrollCooldown) {
+        return;
+      }
+
+      lastScrollTime = now;
+
+      // Detect scroll direction (down = positive, up = negative)
+      if (Math.abs(e.deltaY) > 10) { // Threshold to avoid accidental triggers
+        console.log('Scroll detected, starting density fade animation');
+        this.startDensityFadeAnimation();
+      }
+    }, { passive: true });
+  }
+
   handleClick() {
     // Block clicks during resize
     if (this.isResizing) {
@@ -752,12 +787,65 @@ class MorphingAscii {
     this.startTransition(nextIndex);
   }
 
+  startDensityFadeAnimation() {
+    console.log('Starting density fade animation...');
+
+    this.isDensityAnimating = true;
+    const startDensity = 100;
+    const targetDensity = 15;
+    const duration = 1500; // 1.5 seconds
+    const startTime = performance.now();
+
+    const densityAnimation = () => {
+      if (!this.isDensityAnimating) return; // Stop if interrupted
+
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Ease-out cubic for smooth deceleration
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      // Calculate current density
+      const currentDensity = startDensity - (startDensity - targetDensity) * eased;
+      characterDensity = Math.round(currentDensity);
+
+      // Update UI slider
+      const densitySlider = document.getElementById('densitySlider');
+      const densityValue = document.getElementById('densityValue');
+      if (densitySlider) densitySlider.value = characterDensity;
+      if (densityValue) densityValue.textContent = characterDensity;
+
+      // Render with current density
+      this.render(0);
+
+      if (progress < 1) {
+        requestAnimationFrame(densityAnimation);
+      } else {
+        console.log('Density fade complete');
+        this.isDensityAnimating = false;
+
+        // After fade completes, move to next image
+        const nextIndex = (this.targetImageIndex + 1) % this.asciiDataCache.length;
+        this.startTransition(nextIndex);
+      }
+    };
+
+    densityAnimation();
+  }
+
   startTransition(newTargetIndex) {
     this.currentImageIndex = this.targetImageIndex;
     this.targetImageIndex = newTargetIndex;
     this.isTransitioning = true;
     this.transitionProgress = 0;
     this.transitionStartTime = performance.now();
+
+    // Reset density to 100% when starting a new transition
+    characterDensity = 100;
+    const densitySlider = document.getElementById('densitySlider');
+    const densityValue = document.getElementById('densityValue');
+    if (densitySlider) densitySlider.value = 100;
+    if (densityValue) densityValue.textContent = '100';
 
     // Select a random color pair for this transition (will interpolate during animation)
     setRandomColorPair();
@@ -1031,6 +1119,9 @@ class MorphingAscii {
         if (textCell) {
           // Render text character with pre-calculated brightened color
           result += `<span style="color: ${titleColorStyle}">${textCell.char}</span>`;
+        } else if (!isImageVisible) {
+          // Image is hidden - render as space
+          result += ' ';
         } else if (densityMask.has(i)) {
           // This position is hidden by density mask
           result += ' ';
@@ -1070,6 +1161,9 @@ class MorphingAscii {
           const brightenedColor = getDuotoneColor(1); // Use full brightness for title
           const colorStyle = `rgb(${brightenedColor.r}, ${brightenedColor.g}, ${brightenedColor.b})`;
           result += `<span style="color: ${colorStyle}">${textCell.char}</span>`;
+        } else if (!isImageVisible) {
+          // Image is hidden - render as space
+          result += ' ';
         } else if (densityMask.has(i)) {
           // This position is hidden by density mask
           result += ' ';
@@ -1790,6 +1884,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (window.morphingInstance) {
         window.morphingInstance.isInitialLoad = true;
         window.morphingInstance.startInitialLoadSequence();
+      }
+    });
+  }
+
+  // Image toggle handler
+  const imageToggle = document.getElementById('imageToggle');
+  if (imageToggle) {
+    imageToggle.addEventListener('change', (event) => {
+      event.stopPropagation();
+      isImageVisible = event.target.checked;
+
+      console.log(`Image visibility changed to: ${isImageVisible}`);
+
+      // Re-render immediately (no need to re-initiate loading animation)
+      if (window.morphingInstance && !window.morphingInstance.isTransitioning) {
+        window.morphingInstance.render(0);
       }
     });
   }

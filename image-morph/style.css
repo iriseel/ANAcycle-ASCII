@@ -1,3 +1,4 @@
+/* MODERN GOTHIC MONO */
 @font-face {
     font-family: 'Modern Gothic Mono';
     src: url('../assets/fonts/ModernGothic/ModernGothicMono-Thin-trial.otf') format('opentype');
@@ -26,6 +27,15 @@
     font-style: normal;
 }
 
+/* MODERN GOTHIC */
+@font-face {
+    font-family: 'Modern Gothic';
+    src: url('../assets/fonts/ModernGothic/ModernGothic-Black-trial.otf') format('opentype');
+    font-weight: 800;
+    font-style: normal;
+}
+
+/* SHARP EARTH */
 @font-face {
     font-family: 'Sharp Earth Mono';
     src: url('../assets/fonts/SharpEarthMono/SharpEarthMono-Thin-Trial.otf') format('opentype');
@@ -68,7 +78,21 @@
     font-style: normal;
 }
 
+/* ABC Social */
+@font-face {
+    font-family: 'ABC Social';
+    src: url('../assets/fonts/ABCSocial/ABCSocial-Black-Trial.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+}
 
+/* DRUK */
+@font-face {
+    font-family: 'Druk';
+    src: url('../assets/fonts/Druk/DrukWideLCG-Heavy.ttf') format('truetype');
+    font-weight: 800;
+    font-style: normal;
+}
 
 :root {
     --ascii-unit: 12px;
@@ -365,7 +389,7 @@ body.minimal-mode {
 }
 
 /* Title toggle specific styling */
-#titleToggle {
+#titleToggle, #imageToggle {
     width: 24px;
     height: 24px;
     cursor: pointer;
@@ -373,7 +397,7 @@ body.minimal-mode {
     accent-color: #fff;
 }
 
-#titleToggle:hover {
+#titleToggle:hover, #imageToggle:hover {
     opacity: 0.8;
 }
 
